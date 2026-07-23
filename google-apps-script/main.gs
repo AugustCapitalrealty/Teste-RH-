@@ -16,7 +16,7 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
 
     // Valida dados
-    if (!data.pesquisa_id || !data.respostas) {
+    if (!data.pesquisa_id || !data.avaliacoes) {
       return ContentService.createTextOutput(
         JSON.stringify({ success: false, error: "Dados inválidos" })
       ).setMimeType(ContentService.MimeType.JSON);
@@ -65,7 +65,8 @@ function submitForm(data) {
 }
 
 /**
- * Retorna o HTML do formulário com navegação passo-a-passo
+ * Retorna o HTML do formulário — layout "uma pergunta por tela, todas as áreas de uma vez",
+ * igual à estrutura do projeto original (Lovable).
  */
 function getFormHTML() {
   return `
@@ -86,7 +87,7 @@ function getFormHTML() {
     }
 
     .container {
-      max-width: 700px;
+      max-width: 760px;
       margin: 0 auto;
       background: white;
       border-radius: 12px;
@@ -99,7 +100,7 @@ function getFormHTML() {
       height: 4px;
       background: #e0e0e0;
       border-radius: 2px;
-      margin-bottom: 30px;
+      margin-bottom: 24px;
       overflow: hidden;
     }
 
@@ -116,28 +117,19 @@ function getFormHTML() {
       font-size: 24px;
     }
 
-    .subtitle {
-      text-align: center;
-      color: #666;
-      font-size: 14px;
-      margin-bottom: 30px;
-    }
-
-    .stage-intro {
-      text-align: center;
-    }
+    .stage-intro { text-align: center; }
 
     .stage-intro h2 {
-      font-size: 28px;
+      font-size: 22px;
       color: #333;
-      margin-bottom: 20px;
+      margin-bottom: 8px;
     }
 
     .stage-intro p {
-      font-size: 16px;
+      font-size: 15px;
       color: #666;
       line-height: 1.6;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
     .info-box {
@@ -185,15 +177,8 @@ function getFormHTML() {
       text-transform: uppercase;
     }
 
-    .badge-green {
-      background: #e8f7ee;
-      color: #1e8a4c;
-    }
-
-    .badge-blue {
-      background: #eef1fb;
-      color: #3d4b9c;
-    }
+    .badge-green { background: #e8f7ee; color: #1e8a4c; }
+    .badge-blue { background: #eef1fb; color: #3d4b9c; }
 
     .info-cards {
       display: grid;
@@ -224,14 +209,8 @@ function getFormHTML() {
       color: #333;
     }
 
-    .area-picker {
-      text-align: left;
-      margin: 24px 0;
-    }
-
-    .area-picker label {
-      text-align: center;
-    }
+    .area-picker { text-align: left; margin: 24px 0; }
+    .area-picker label { text-align: center; }
 
     .chips {
       display: flex;
@@ -251,20 +230,13 @@ function getFormHTML() {
       color: #444;
     }
 
-    .chip:hover {
-      border-color: #667eea;
-      color: #667eea;
-    }
+    .chip:hover { border-color: #667eea; color: #667eea; }
 
     .chip.selected {
       background: #667eea;
       border-color: #667eea;
       color: white;
       font-weight: 600;
-    }
-
-    .form-group {
-      margin-bottom: 24px;
     }
 
     label {
@@ -275,76 +247,157 @@ function getFormHTML() {
       font-size: 15px;
     }
 
-    select, textarea {
+    textarea {
       width: 100%;
       padding: 10px;
       border: 1px solid #ddd;
       border-radius: 6px;
       font-family: inherit;
       font-size: 14px;
+      resize: vertical;
+      height: 80px;
       transition: border-color 0.2s;
     }
 
-    select:focus, textarea:focus {
+    textarea:focus {
       outline: none;
       border-color: #667eea;
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    textarea {
-      resize: vertical;
-      height: 100px;
+    /* ==== SURVEY STEP HEADER ==== */
+    .step-header { margin-bottom: 18px; }
+
+    .step-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .step-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #999;
+      text-transform: uppercase;
+    }
+
+    .section-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #667eea;
+      text-transform: uppercase;
+    }
+
+    .answered-count {
+      font-size: 11px;
+      color: #999;
+      background: #f5f5f5;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .question-text {
+      font-size: 19px;
+      font-weight: 700;
+      color: #222;
+      line-height: 1.4;
+    }
+
+    /* ==== AREA CARDS ==== */
+    .area-card {
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      background: #fff;
+    }
+
+    .area-card.self {
+      border-color: #667eea;
+      border-width: 2px;
+      background: #f8f9ff;
+    }
+
+    .area-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .self-badge {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      background: #667eea;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 999px;
     }
 
     .scale-labels {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0;
-      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
       color: #999;
-      margin-bottom: 8px;
-      margin-top: -6px;
+      margin-bottom: 6px;
     }
 
     .rating-group {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 6px;
-      margin: 12px 0 8px 0;
+      margin-bottom: 6px;
     }
 
     .emoji-btn {
       background: white;
       border: 2px solid #e0e0e0;
-      padding: 12px 8px;
-      font-size: 24px;
+      padding: 8px 4px;
+      font-size: 13px;
+      font-weight: 600;
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      aspect-ratio: 1;
+      gap: 2px;
+      color: #555;
     }
 
-    .emoji-btn:hover {
-      border-color: #667eea;
-      background: #f8f9ff;
-      transform: scale(1.05);
-    }
+    .emoji-btn span.em { font-size: 18px; }
+
+    .emoji-btn:hover { border-color: #667eea; background: #f8f9ff; }
 
     .emoji-btn.selected {
       border-color: #667eea;
       background: #667eea;
-      transform: scale(1.1);
+      color: white;
     }
 
     .na-btn {
-      grid-column: 1 / -1;
-      padding: 8px !important;
-      font-size: 13px;
+      width: 100%;
+      padding: 6px !important;
+      font-size: 11px;
+      font-weight: 500;
       border-style: dashed !important;
-      aspect-ratio: auto;
+      color: #999;
     }
 
     .na-btn.selected {
@@ -353,10 +406,11 @@ function getFormHTML() {
       color: #333;
     }
 
+    /* ==== NAVIGATION ==== */
     .navigation {
       display: flex;
       gap: 12px;
-      margin-top: 30px;
+      margin-top: 24px;
       justify-content: space-between;
     }
 
@@ -370,14 +424,8 @@ function getFormHTML() {
       transition: all 0.3s;
     }
 
-    .btn-prev {
-      background: #f0f0f0;
-      color: #333;
-    }
-
-    .btn-prev:hover {
-      background: #e0e0e0;
-    }
+    .btn-prev { background: #f0f0f0; color: #333; }
+    .btn-prev:hover { background: #e0e0e0; }
 
     .btn-next, .btn-submit {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -390,10 +438,7 @@ function getFormHTML() {
       box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
     }
 
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .success-message {
       display: none;
@@ -401,17 +446,8 @@ function getFormHTML() {
       padding: 40px;
     }
 
-    .success-message h2 {
-      font-size: 32px;
-      color: #4caf50;
-      margin-bottom: 15px;
-    }
-
-    .success-message p {
-      font-size: 16px;
-      color: #666;
-      line-height: 1.6;
-    }
+    .success-message h2 { font-size: 32px; color: #4caf50; margin-bottom: 15px; }
+    .success-message p { font-size: 16px; color: #666; line-height: 1.6; }
 
     .hidden { display: none; }
   </style>
@@ -420,53 +456,45 @@ function getFormHTML() {
   <div class="container">
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 
-    <h1>📊 Pesquisa RH 360º</h1>
-
     <!-- INTRO -->
     <div id="stageIntro" class="stage-intro">
+      <h1>📊 Pesquisa RH 360º</h1>
       <div class="badges">
         <span class="badge badge-green">🛡️ Pesquisa Anônima</span>
         <span class="badge badge-blue">🏢 Capital Realty</span>
       </div>
 
-      <h2 style="font-size: 22px; margin-bottom: 8px;">Pesquisa de Satisfação Interdepartamental</h2>
-      <p>Avalie a área com a qual você mais interage no dia a dia. Suas respostas são totalmente anônimas.</p>
+      <h2>Pesquisa de Satisfação Interdepartamental</h2>
+      <p>Avalie todas as áreas com as quais você interage. Suas respostas são totalmente anônimas.</p>
 
       <div class="info-box">
         <strong>⚙️ COMO FUNCIONA</strong>
         <ul>
-          <li>Cada tela tem <strong>1 pergunta</strong>, respondida em escala de emoji</li>
+          <li>Cada tela tem <strong>1 pergunta</strong>, respondida para <strong>todas as áreas</strong></li>
           <li>Selecione a opção que melhor representa sua experiência 😞 😕 😐 🙂 😄 — ou <strong>N/A</strong> se você não tem interação com aquela área</li>
-          <li>São <strong>8 perguntas objetivas</strong> + <strong>2 comentários opcionais</strong></li>
+          <li><strong>Autoavaliação:</strong> você também avalia a sua própria área</li>
+          <li>São <strong>8 perguntas objetivas</strong> + <strong>2 comentários</strong></li>
         </ul>
       </div>
 
       <div class="info-cards">
         <div class="info-card">
-          <div class="label">Perguntas</div>
-          <div class="value">8 objetivas</div>
+          <div class="label">Sua área</div>
+          <div class="value" id="cardSuaArea">—</div>
         </div>
         <div class="info-card">
-          <div class="label">Tempo estimado</div>
-          <div class="value">~5 minutos</div>
+          <div class="label">Áreas a avaliar</div>
+          <div class="value" id="cardAreasAvaliar">—</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Autoavaliação</div>
+          <div class="value">Sua área</div>
         </div>
       </div>
 
       <div class="area-picker">
-        <label>Qual área você deseja avaliar? *</label>
-        <div class="chips" id="areaChips">
-          <button type="button" class="chip" data-area="Administrativo/Secretarias">Administrativo/Secretarias</button>
-          <button type="button" class="chip" data-area="Arquitetura">Arquitetura</button>
-          <button type="button" class="chip" data-area="Comercial/Marketing">Comercial/Marketing</button>
-          <button type="button" class="chip" data-area="Diretoria">Diretoria</button>
-          <button type="button" class="chip" data-area="Engenharia">Engenharia</button>
-          <button type="button" class="chip" data-area="Facilities">Facilities</button>
-          <button type="button" class="chip" data-area="Financeiro/Contábil">Financeiro/Contábil</button>
-          <button type="button" class="chip" data-area="Jurídico">Jurídico</button>
-          <button type="button" class="chip" data-area="Propriedades">Propriedades</button>
-          <button type="button" class="chip" data-area="Recursos Humanos">Recursos Humanos</button>
-          <button type="button" class="chip" data-area="Tecnologia da Informação">Tecnologia da Informação</button>
-        </div>
+        <label>Qual é a sua área? *</label>
+        <div class="chips" id="areaChips"></div>
       </div>
 
       <div class="navigation">
@@ -476,23 +504,22 @@ function getFormHTML() {
 
     <!-- SURVEY -->
     <div id="stageSurvey" class="hidden">
-      <div class="subtitle" id="sectionTitle"></div>
+      <div class="step-header">
+        <div class="step-row">
+          <span class="step-label" id="stepLabel"></span>
+        </div>
+        <div class="section-row">
+          <span class="section-label" id="sectionLabel"></span>
+          <span class="answered-count" id="answeredCount"></span>
+        </div>
+        <div class="question-text" id="questionText"></div>
+      </div>
 
       <div id="questionsContainer"></div>
 
-      <div class="form-group hidden" id="abertas1Group">
-        <label>O que esta área faz muito bem?</label>
-        <textarea id="aberta1" placeholder="Ex.: a área é muito ágil e me responde sempre no mesmo dia."></textarea>
-      </div>
-
-      <div class="form-group hidden" id="abertas2Group">
-        <label>O que esta área poderia melhorar na interação com o seu setor?</label>
-        <textarea id="aberta2" placeholder="Ex.: alinhar prazos antes de iniciar uma demanda nova."></textarea>
-      </div>
-
       <div class="navigation">
-        <button class="btn btn-prev" id="btnPrev" onclick="previousSection()">← Anterior</button>
-        <button class="btn btn-next" id="btnNext" onclick="nextSection()">Próximo →</button>
+        <button class="btn btn-prev" id="btnPrev" onclick="previousStep()">← Anterior</button>
+        <button class="btn btn-next" id="btnNext" onclick="nextStep()">Próximo →</button>
         <button class="btn btn-submit hidden" id="btnSubmit" onclick="submitSurvey()">Enviar</button>
       </div>
     </div>
@@ -506,40 +533,33 @@ function getFormHTML() {
   </div>
 
   <script>
-    const sections = [
-      {
-        titulo: "1. Comunicação",
-        perguntas: [
-          { texto: "Como você avalia a clareza da comunicação dessa área?", familia: "satisfacao" },
-          { texto: "Como você avalia a cordialidade dessa área?", familia: "satisfacao" },
-          { texto: "Como você avalia a transparência da comunicação dessa área?", familia: "satisfacao" }
-        ]
-      },
-      {
-        titulo: "2. Agilidade (SLA)",
-        perguntas: [
-          { texto: "Como você avalia a velocidade de resposta dessa área?", familia: "satisfacao" },
-          { texto: "Como você avalia o cumprimento dos prazos acordados por essa área?", familia: "satisfacao" }
-        ]
-      },
-      {
-        titulo: "3. Qualidade de entrega",
-        perguntas: [
-          { texto: "Como você avalia a assertividade e a qualidade das soluções entregues por essa área?", familia: "satisfacao" }
-        ]
-      },
-      {
-        titulo: "4. Parceria e colaboração",
-        perguntas: [
-          { texto: "O quanto você sente que essa área atua como uma parceria estratégica do seu setor?", familia: "concordancia" }
-        ]
-      },
-      {
-        titulo: "5. Grau de esforço",
-        perguntas: [
-          { texto: "Esta área simplifica a resolução dos problemas ou solicitações do meu setor?", familia: "concordancia" }
-        ]
-      }
+    const AREAS = [
+      "Planejamento & Gestão",
+      "Administrativo/Secretarias",
+      "Arquitetura",
+      "Comercial/Marketing",
+      "Diretoria",
+      "Engenharia",
+      "Facilities",
+      "Financeiro/Contábil",
+      "Jurídico",
+      "Propriedades",
+      "Recursos Humanos",
+      "Tecnologia da Informação"
+    ];
+
+    // 8 perguntas objetivas + 2 comentários, na mesma ordem do projeto original
+    const QUESTIONS = [
+      { type: "rating", secao: "Comunicação", texto: "Como você avalia a clareza da comunicação dessa área?", familia: "satisfacao" },
+      { type: "rating", secao: "Comunicação", texto: "Como você avalia a cordialidade dessa área?", familia: "satisfacao" },
+      { type: "rating", secao: "Comunicação", texto: "Como você avalia a transparência da comunicação dessa área?", familia: "satisfacao" },
+      { type: "rating", secao: "Agilidade (SLA)", texto: "Como você avalia a velocidade de resposta dessa área?", familia: "satisfacao" },
+      { type: "rating", secao: "Agilidade (SLA)", texto: "Como você avalia o cumprimento dos prazos acordados por essa área?", familia: "satisfacao" },
+      { type: "rating", secao: "Qualidade de entrega", texto: "Como você avalia a assertividade e a qualidade das soluções entregues por essa área?", familia: "satisfacao" },
+      { type: "rating", secao: "Parceria e colaboração", texto: "O quanto você sente que essa área atua como uma parceira estratégica do seu setor?", familia: "concordancia" },
+      { type: "rating", secao: "Grau de esforço", texto: "Esta área simplifica a resolução dos problemas ou solicitações do meu setor?", familia: "concordancia" },
+      { type: "text", secao: "Comentários", texto: "O que esta área faz muito bem?", placeholder: "Ex.: a área é muito ágil e me responde sempre no mesmo dia." },
+      { type: "text", secao: "Comentários", texto: "O que esta área poderia melhorar na interação com o seu setor?", placeholder: "Ex.: alinhar prazos antes de iniciar uma demanda nova." }
     ];
 
     const EMOJIS = ["😞", "😕", "😐", "🙂", "😄"];
@@ -547,114 +567,202 @@ function getFormHTML() {
     const LABELS_CON = ["Discordo totalmente", "Discordo", "Neutro", "Concordo", "Concordo totalmente"];
 
     let currentStep = 0;
-    let respostas = {};
-    let areaAvaliada = '';
+    let suaArea = '';
+    let orderedAreas = []; // sua área primeiro, depois as demais
+    const answers = {}; // "questionIdx_areaIdx" -> "1".."5" | "na" | texto
 
-    document.querySelectorAll('#areaChips .chip').forEach(chip => {
+    const chipsContainer = document.getElementById('areaChips');
+    AREAS.forEach(area => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.dataset.area = area;
+      chip.textContent = area;
       chip.addEventListener('click', () => {
         document.querySelectorAll('#areaChips .chip').forEach(c => c.classList.remove('selected'));
         chip.classList.add('selected');
-        areaAvaliada = chip.dataset.area;
+        suaArea = area;
+        orderedAreas = [area, ...AREAS.filter(a => a !== area)];
+        document.getElementById('cardSuaArea').textContent = area;
+        document.getElementById('cardAreasAvaliar').textContent = (AREAS.length - 1);
         document.getElementById('btnStart').disabled = false;
       });
+      chipsContainer.appendChild(chip);
     });
 
     function updateProgress() {
-      const totalSteps = sections.length;
-      const progress = ((currentStep + 1) / totalSteps) * 100;
+      const progress = ((currentStep + 1) / QUESTIONS.length) * 100;
       document.getElementById('progressFill').style.width = progress + '%';
     }
 
-    function renderQuestions() {
-      const section = sections[currentStep];
-      document.getElementById('sectionTitle').textContent = section.titulo + ' — Avaliando: ' + areaAvaliada;
+    function renderStep() {
+      const q = QUESTIONS[currentStep];
+
+      document.getElementById('stepLabel').textContent = 'Etapa ' + (currentStep + 1) + ' de ' + QUESTIONS.length;
+
+      if (q.type === 'rating') {
+        const ratingIdx = QUESTIONS.slice(0, currentStep + 1).filter(x => x.type === 'rating').length;
+        const totalRating = QUESTIONS.filter(x => x.type === 'rating').length;
+        document.getElementById('sectionLabel').textContent = q.secao + ' · Pergunta ' + ratingIdx + ' de ' + totalRating;
+      } else {
+        const textIdx = QUESTIONS.slice(0, currentStep + 1).filter(x => x.type === 'text').length;
+        const totalText = QUESTIONS.filter(x => x.type === 'text').length;
+        document.getElementById('sectionLabel').textContent = q.secao + ' · ' + textIdx + ' de ' + totalText;
+      }
+
+      document.getElementById('questionText').textContent = q.texto;
 
       const container = document.getElementById('questionsContainer');
       container.innerHTML = '';
 
-      section.perguntas.forEach((pergunta, idx) => {
-        const labels = pergunta.familia === 'satisfacao' ? LABELS_SAT : LABELS_CON;
-        const key = currentStep + '_' + idx;
+      const answeredCountEl = document.getElementById('answeredCount');
 
-        const html = \`
-          <div class="form-group">
-            <label>\${pergunta.texto} *</label>
-            <div class="scale-labels">
-              <span>\${labels[0]}</span>
-              <span style="text-align: right;">\${labels[4]}</span>
-            </div>
+      if (q.type === 'rating') {
+        const labels = q.familia === 'satisfacao' ? LABELS_SAT : LABELS_CON;
+        answeredCountEl.classList.remove('hidden');
+        answeredCountEl.textContent = '0/' + orderedAreas.length;
+
+        orderedAreas.forEach((area, areaIdx) => {
+          const isSelf = areaIdx === 0;
+          const key = currentStep + '_' + areaIdx;
+
+          const card = document.createElement('div');
+          card.className = 'area-card' + (isSelf ? ' self' : '');
+          card.innerHTML = \`
+            <div class="area-card-title">\${area}\${isSelf ? '<span class="self-badge">Sua área</span>' : ''}</div>
+            <div class="scale-labels"><span>\${labels[0]}</span><span>\${labels[4]}</span></div>
             <div class="rating-group" data-key="\${key}">
               \${EMOJIS.map((emoji, i) => \`
-                <button type="button" class="emoji-btn" data-value="\${i + 1}" data-key="\${key}">\${emoji}</button>
+                <button type="button" class="emoji-btn" data-value="\${i + 1}" data-key="\${key}"><span class="em">\${emoji}</span><span>\${i + 1}</span></button>
               \`).join('')}
-              <button type="button" class="emoji-btn na-btn" data-value="na" data-key="\${key}" style="grid-column: 1 / -1;">N/A</button>
             </div>
-          </div>
-        \`;
-        container.innerHTML += html;
-      });
-
-      document.querySelectorAll('.emoji-btn').forEach(btn => {
-        const key = btn.dataset.key;
-        const value = btn.dataset.value;
-        if (respostas[key] == value) btn.classList.add('selected');
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          document.querySelectorAll(\`[data-key="\${key}"]\`).forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          respostas[key] = value;
+            <button type="button" class="emoji-btn na-btn" data-value="na" data-key="\${key}">N/A — não tenho interação com essa área</button>
+          \`;
+          container.appendChild(card);
         });
-      });
 
-      const totalSteps = sections.length;
-      const isLast = currentStep === totalSteps - 1;
+        document.querySelectorAll('.emoji-btn').forEach(btn => {
+          const key = btn.dataset.key;
+          const value = btn.dataset.value;
+          if (answers[key] === value) btn.classList.add('selected');
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll(\`[data-key="\${key}"]\`).forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            answers[key] = value;
+            updateAnsweredCount();
+            updateNextButtonState();
+          });
+        });
 
+        updateAnsweredCount();
+      } else {
+        answeredCountEl.classList.add('hidden');
+
+        orderedAreas.forEach((area, areaIdx) => {
+          const isSelf = areaIdx === 0;
+          const key = currentStep + '_' + areaIdx;
+
+          const card = document.createElement('div');
+          card.className = 'area-card' + (isSelf ? ' self' : '');
+          card.innerHTML = \`
+            <div class="area-card-title">\${area}\${isSelf ? '<span class="self-badge">Sua área</span>' : ''}</div>
+            <textarea data-key="\${key}" placeholder="\${q.placeholder}">\${answers[key] || ''}</textarea>
+          \`;
+          container.appendChild(card);
+        });
+
+        document.querySelectorAll('textarea[data-key]').forEach(ta => {
+          ta.addEventListener('input', () => {
+            answers[ta.dataset.key] = ta.value;
+          });
+        });
+      }
+
+      const isLast = currentStep === QUESTIONS.length - 1;
       document.getElementById('btnPrev').classList.toggle('hidden', currentStep === 0);
       document.getElementById('btnNext').classList.toggle('hidden', isLast);
       document.getElementById('btnSubmit').classList.toggle('hidden', !isLast);
-      document.getElementById('abertas1Group').classList.toggle('hidden', !isLast);
-      document.getElementById('abertas2Group').classList.toggle('hidden', !isLast);
 
+      updateNextButtonState();
       updateProgress();
+    }
+
+    function updateAnsweredCount() {
+      const q = QUESTIONS[currentStep];
+      if (q.type !== 'rating') return;
+      const answered = orderedAreas.filter((_, i) => answers[currentStep + '_' + i]).length;
+      document.getElementById('answeredCount').textContent = answered + '/' + orderedAreas.length;
+    }
+
+    function stepIsComplete(stepIdx) {
+      const q = QUESTIONS[stepIdx];
+      if (q.type !== 'rating') return true; // comentários são opcionais
+      return orderedAreas.every((_, i) => !!answers[stepIdx + '_' + i]);
+    }
+
+    function updateNextButtonState() {
+      const complete = stepIsComplete(currentStep);
+      document.getElementById('btnNext').disabled = !complete;
+      document.getElementById('btnSubmit').disabled = !complete;
     }
 
     function startSurvey() {
       document.getElementById('stageIntro').classList.add('hidden');
       document.getElementById('stageSurvey').classList.remove('hidden');
-      renderQuestions();
+      renderStep();
     }
 
-    function nextSection() {
-      if (currentStep < sections.length - 1) {
+    function nextStep() {
+      if (!stepIsComplete(currentStep)) {
+        alert('Por favor, responda para todas as áreas antes de continuar');
+        return;
+      }
+      if (currentStep < QUESTIONS.length - 1) {
         currentStep++;
-        renderQuestions();
+        renderStep();
         window.scrollTo(0, 0);
       }
     }
 
-    function previousSection() {
+    function previousStep() {
       if (currentStep > 0) {
         currentStep--;
-        renderQuestions();
+        renderStep();
         window.scrollTo(0, 0);
       }
     }
 
     function submitSurvey() {
-      const totalPerguntas = sections.reduce((sum, s) => sum + s.perguntas.length, 0);
-      const respostasCount = Object.keys(respostas).filter(k => respostas[k]).length;
-
-      if (respostasCount < totalPerguntas) {
-        alert('Por favor, responda todas as perguntas');
+      if (!stepIsComplete(currentStep)) {
+        alert('Por favor, responda para todas as áreas antes de enviar');
         return;
       }
 
+      // Monta avaliações por área: cada área recebe suas notas e seus comentários
+      const avaliacoes = orderedAreas.map((area, areaIdx) => {
+        const respostas = {};
+        const abertas = {};
+        QUESTIONS.forEach((q, qIdx) => {
+          const val = answers[qIdx + '_' + areaIdx];
+          if (q.type === 'rating') {
+            respostas['q' + qIdx] = val || 'na';
+          } else {
+            abertas['q' + qIdx] = val || '';
+          }
+        });
+        return {
+          area_avaliada: area,
+          is_autoavaliacao: areaIdx === 0,
+          respostas: respostas,
+          abertas: abertas
+        };
+      });
+
       const data = {
         pesquisa_id: 'pesquisa_360',
-        area_avaliada: areaAvaliada,
-        respostas: respostas,
-        aberta_1: document.getElementById('aberta1').value || '',
-        aberta_2: document.getElementById('aberta2').value || '',
+        sua_area: suaArea,
+        avaliacoes: avaliacoes,
         timestamp: new Date().toISOString()
       };
 

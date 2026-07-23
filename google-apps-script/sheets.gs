@@ -1,11 +1,28 @@
 /**
- * Salva resposta em Google Sheets (novo formato com múltiplas seções)
+ * Textos das perguntas (mesma ordem usada no main.gs) — usado só para deixar a planilha legível
+ */
+const QUESTION_TEXTS = [
+  'Clareza da comunicação',
+  'Cordialidade',
+  'Transparência da comunicação',
+  'Velocidade de resposta',
+  'Cumprimento de prazos (SLA)',
+  'Qualidade das soluções entregues',
+  'Parceria estratégica',
+  'Grau de esforço / simplicidade',
+  'O que esta área faz muito bem?',
+  'O que esta área poderia melhorar?'
+];
+
+/**
+ * Salva resposta em Google Sheets.
+ * Formato recebido: { pesquisa_id, sua_area, avaliacoes: [{ area_avaliada, is_autoavaliacao, respostas: {q0..q7}, abertas: {q8,q9} }] }
+ * Grava uma linha por (área avaliada x pergunta).
  */
 function saveResponseToSheet(data) {
   try {
     const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
 
-    // Cria aba "Respostas" se não existir
     let sheet = ss.getSheetByName('Respostas');
     if (!sheet) {
       sheet = ss.insertSheet('Respostas');
@@ -14,23 +31,47 @@ function saveResponseToSheet(data) {
 
     const respondentId = Utilities.getUuid();
     const timestamp = data.timestamp || new Date().toISOString();
-    const areaAvaliada = data.area_avaliada || '';
+    const suaArea = data.sua_area || '';
+    const rows = [];
 
-    // Salva cada resposta em uma linha
-    // Formato: Timestamp | ID | Área Avaliada | Seção_Pergunta | Resposta | Aberta1 | Aberta2
-    for (const key in data.respostas) {
-      if (key !== 'pesquisa_id') {
-        const row = [
+    (data.avaliacoes || []).forEach(function(avaliacao) {
+      const areaAvaliada = avaliacao.area_avaliada || '';
+      const isAuto = !!avaliacao.is_autoavaliacao;
+
+      const respostas = avaliacao.respostas || {};
+      for (const key in respostas) {
+        const qIdx = parseInt(key.replace('q', ''), 10);
+        rows.push([
           timestamp,
           respondentId,
+          suaArea,
           areaAvaliada,
-          key, // "0_0", "0_1", etc
-          data.respostas[key],
-          data.aberta_1 || '',
-          data.aberta_2 || ''
-        ];
-        sheet.appendRow(row);
+          isAuto ? 'Sim' : 'Não',
+          QUESTION_TEXTS[qIdx] || key,
+          'rating',
+          respostas[key]
+        ]);
       }
+
+      const abertas = avaliacao.abertas || {};
+      for (const key in abertas) {
+        if (!abertas[key]) continue; // comentário vazio não é gravado
+        const qIdx = parseInt(key.replace('q', ''), 10);
+        rows.push([
+          timestamp,
+          respondentId,
+          suaArea,
+          areaAvaliada,
+          isAuto ? 'Sim' : 'Não',
+          QUESTION_TEXTS[qIdx] || key,
+          'texto',
+          abertas[key]
+        ]);
+      }
+    });
+
+    if (rows.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
     }
 
     return {
@@ -52,22 +93,21 @@ function createResponsesHeader(sheet) {
   const headers = [
     'Timestamp',
     'Respondente ID',
+    'Sua Área',
     'Área Avaliada',
+    'Autoavaliação',
     'Pergunta',
-    'Resposta',
-    'Aberta 1 (Pontos Fortes)',
-    'Aberta 2 (Melhorias)'
+    'Tipo',
+    'Resposta'
   ];
 
   sheet.appendRow(headers);
 
-  // Formata header
   const headerRange = sheet.getRange(1, 1, 1, headers.length);
   headerRange.setBackground('#667eea');
   headerRange.setFontColor('#ffffff');
   headerRange.setFontWeight('bold');
 
-  // Auto-resize colunas
   for (let i = 1; i <= headers.length; i++) {
     sheet.autoResizeColumn(i);
   }
@@ -79,62 +119,66 @@ function createResponsesHeader(sheet) {
 function initializeSpreadsheet() {
   const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
 
-  // Cria aba CONFIG
   let configSheet = ss.getSheetByName('CONFIG');
   if (!configSheet) {
     configSheet = ss.insertSheet('CONFIG', 0);
     configSheet.appendRow(['Chave', 'Valor']);
-    configSheet.appendRow(['pesquisa_id', 'pesquisa_001']);
-    configSheet.appendRow(['titulo_pesquisa', 'Pesquisa RH 360º']);
+    configSheet.appendRow(['pesquisa_id', 'pesquisa_360']);
+    configSheet.appendRow(['titulo_pesquisa', 'Pesquisa de Satisfação Interdepartamental']);
     configSheet.appendRow(['status', 'ativa']);
     configSheet.appendRow(['criado_em', new Date().toISOString()]);
 
-    // Formata
     configSheet.getRange(1, 1, 1, 2).setBackground('#764ba2').setFontColor('#ffffff').setFontWeight('bold');
   }
 
-  // Cria aba ANALISE se não existir
   let analiseSheet = ss.getSheetByName('ANALISE');
   if (!analiseSheet) {
     analiseSheet = ss.insertSheet('ANALISE');
-    analiseSheet.appendRow(['Departamento', 'Total Respostas', 'Média Comunicação', 'Média Qualidade', 'Média Parceria', 'Média Geral']);
-    analiseSheet.getRange(1, 1, 1, 6).setBackground('#764ba2').setFontColor('#ffffff').setFontWeight('bold');
+    analiseSheet.appendRow(['Área Avaliada', 'Total Notas', 'Média Geral']);
+    analiseSheet.getRange(1, 1, 1, 3).setBackground('#764ba2').setFontColor('#ffffff').setFontWeight('bold');
   }
 
   Logger.log('Spreadsheet inicializado com sucesso!');
 }
 
 /**
- * Função para testar - cria dados de exemplo
+ * Função para testar - cria dados de exemplo (2 respondentes avaliando todas as áreas)
  */
 function seedTestData() {
-  const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
-  let respostasSheet = ss.getSheetByName('Respostas');
-  if (!respostasSheet) {
-    respostasSheet = ss.insertSheet('Respostas');
-    createResponsesHeader(respostasSheet);
+  const areas = [
+    'Planejamento & Gestão', 'Administrativo/Secretarias', 'Arquitetura',
+    'Comercial/Marketing', 'Diretoria', 'Engenharia', 'Facilities',
+    'Financeiro/Contábil', 'Jurídico', 'Propriedades', 'Recursos Humanos',
+    'Tecnologia da Informação'
+  ];
+
+  for (let r = 0; r < 2; r++) {
+    const suaArea = areas[r];
+    const avaliacoes = areas.map(function(area) {
+      const respostas = {};
+      for (let q = 0; q < 8; q++) {
+        respostas['q' + q] = String(Math.floor(Math.random() * 5) + 1);
+      }
+      return {
+        area_avaliada: area,
+        is_autoavaliacao: area === suaArea,
+        respostas: respostas,
+        abertas: { q8: 'Comentário de teste', q9: 'Sugestão de teste' }
+      };
+    });
+
+    saveResponseToSheet({
+      sua_area: suaArea,
+      avaliacoes: avaliacoes,
+      timestamp: new Date(Date.now() - r * 3600000).toISOString()
+    });
   }
 
-  // Adiciona 10 respostas de teste
-  const departamentos = ['RH', 'TI', 'Comercial', 'Operações'];
-  for (let i = 0; i < 10; i++) {
-    const row = [
-      new Date(Date.now() - i * 3600000).toISOString(),
-      departamentos[Math.floor(Math.random() * 4)],
-      Math.floor(Math.random() * 5) + 1,
-      Math.floor(Math.random() * 5) + 1,
-      Math.floor(Math.random() * 5) + 1,
-      'Comentário de teste ' + i,
-      Utilities.getUuid()
-    ];
-    respostasSheet.appendRow(row);
-  }
-
-  Logger.log('10 respostas de teste inseridas!');
+  Logger.log('Respostas de teste inseridas!');
 }
 
 /**
- * Calcula estatísticas das respostas
+ * Calcula estatísticas (média geral por área avaliada) a partir das notas objetivas
  */
 function calculateStats() {
   const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
@@ -144,54 +188,37 @@ function calculateStats() {
   if (!respostasSheet || !analiseSheet) return;
 
   const data = respostasSheet.getDataRange().getValues();
-  if (data.length < 2) return; // Sem dados além do header
+  if (data.length < 2) return;
 
-  // Agrupa por departamento
-  const statsByDept = {};
+  // Colunas: Timestamp | Respondente ID | Sua Área | Área Avaliada | Autoavaliação | Pergunta | Tipo | Resposta
+  const statsByArea = {};
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const dept = row[1];
-    const p1 = parseFloat(row[2]) || 0;
-    const p2 = parseFloat(row[3]) || 0;
-    const p3 = parseFloat(row[4]) || 0;
+    const areaAvaliada = row[3];
+    const tipo = row[6];
+    const resposta = row[7];
 
-    if (!statsByDept[dept]) {
-      statsByDept[dept] = {
-        count: 0,
-        p1: 0,
-        p2: 0,
-        p3: 0
-      };
+    if (tipo !== 'rating' || resposta === 'na' || resposta === '') continue;
+
+    const nota = parseFloat(resposta);
+    if (isNaN(nota)) continue;
+
+    if (!statsByArea[areaAvaliada]) {
+      statsByArea[areaAvaliada] = { count: 0, soma: 0 };
     }
-
-    statsByDept[dept].count++;
-    statsByDept[dept].p1 += p1;
-    statsByDept[dept].p2 += p2;
-    statsByDept[dept].p3 += p3;
+    statsByArea[areaAvaliada].count++;
+    statsByArea[areaAvaliada].soma += nota;
   }
 
-  // Limpa a aba ANALISE (exceto header)
   if (analiseSheet.getMaxRows() > 1) {
     analiseSheet.deleteRows(2, analiseSheet.getMaxRows() - 1);
   }
 
-  // Insere estatísticas
-  for (const dept in statsByDept) {
-    const stats = statsByDept[dept];
-    const avgP1 = (stats.p1 / stats.count).toFixed(2);
-    const avgP2 = (stats.p2 / stats.count).toFixed(2);
-    const avgP3 = (stats.p3 / stats.count).toFixed(2);
-    const avgGeral = ((parseFloat(avgP1) + parseFloat(avgP2) + parseFloat(avgP3)) / 3).toFixed(2);
-
-    analiseSheet.appendRow([
-      dept,
-      stats.count,
-      avgP1,
-      avgP2,
-      avgP3,
-      avgGeral
-    ]);
+  for (const area in statsByArea) {
+    const stats = statsByArea[area];
+    const media = (stats.soma / stats.count).toFixed(2);
+    analiseSheet.appendRow([area, stats.count, media]);
   }
 
   Logger.log('Estatísticas calculadas!');
