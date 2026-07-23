@@ -378,11 +378,12 @@ function getFormHTML() {
 
     .footer-disclaimer { margin-top: 18px; font-size: 11.5px; color: var(--muted-fg); text-align: center; line-height: 1.5; }
 
-    .success-message { display: none; text-align: center; padding: 40px; }
+    .success-message { text-align: center; padding: 40px; }
+    .success-message .big-emoji { font-size: 56px; margin-bottom: 12px; }
     .success-message h2 { font-size: 26px; color: var(--navy); margin-bottom: 15px; font-weight: 700; }
     .success-message p { font-size: 15px; color: var(--muted-fg); line-height: 1.6; }
 
-    .already-done { display: none; text-align: center; padding: 40px; }
+    .already-done { text-align: center; padding: 40px; }
     .already-done h2 { font-size: 22px; color: var(--navy); margin-bottom: 12px; font-weight: 700; }
     .already-done p { font-size: 15px; color: var(--muted-fg); line-height: 1.6; }
 
@@ -417,7 +418,7 @@ function getFormHTML() {
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 
       <!-- JÁ RESPONDEU (bloqueio local) -->
-      <div id="stageAlreadyDone" class="already-done">
+      <div id="stageAlreadyDone" class="already-done hidden">
         <h2>✅ Você já respondeu esta pesquisa</h2>
         <p>Suas respostas já foram registradas anonimamente neste navegador. Cada colaborador participa apenas uma vez por ciclo.</p>
       </div>
@@ -494,9 +495,11 @@ function getFormHTML() {
       </div>
 
       <!-- SUCCESS -->
-      <div id="stageSuccess" class="success-message">
-        <h2>Obrigado(a) por participar! 🎉</h2>
+      <div id="stageSuccess" class="success-message hidden">
+        <div class="big-emoji">🎉</div>
+        <h2>Obrigado por participar!</h2>
         <p>Suas avaliações foram registradas de forma totalmente anônima. Nenhuma informação gravada permite associar essas respostas a você.</p>
+        <p style="margin-top: 16px; font-weight: 600; color: var(--navy);">Sua opinião ajuda a melhorar a colaboração entre as áreas. 💜</p>
       </div>
     </div>
   </div>
@@ -807,7 +810,9 @@ function getFormHTML() {
         safeStorageSet(STORAGE_DONE_KEY, '1');
         document.getElementById('confirmModal').classList.add('hidden');
         document.getElementById('stageSurvey').classList.add('hidden');
+        document.querySelector('.progress-bar').style.display = 'none';
         document.getElementById('stageSuccess').classList.remove('hidden');
+        window.scrollTo(0, 0);
       }).withFailureHandler((error) => {
         console.error('Erro:', error);
         btn.disabled = false;
@@ -824,6 +829,7 @@ function getFormHTML() {
     // ==== Inicialização ====
     if (safeStorageGet(STORAGE_DONE_KEY)) {
       document.getElementById('stageIntro').classList.add('hidden');
+      document.querySelector('.progress-bar').style.display = 'none';
       document.getElementById('stageAlreadyDone').classList.remove('hidden');
     } else if (!safeStorageGet(STORAGE_SEEN_KEY)) {
       document.getElementById('anonModal').classList.remove('hidden');
