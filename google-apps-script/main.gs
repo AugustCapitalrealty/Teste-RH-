@@ -45,6 +45,26 @@ function doPost(e) {
 }
 
 /**
+ * Função chamada do formulário HTML via google.script.run
+ */
+function submitForm(data) {
+  try {
+    const result = saveResponseToSheet(data);
+    return {
+      success: true,
+      message: "Resposta salva com sucesso!",
+      id: result.id
+    };
+  } catch (error) {
+    Logger.log("Erro ao salvar resposta: " + error);
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+/**
  * Retorna o HTML do formulário
  */
 function getFormHTML() {
