@@ -75,86 +75,126 @@ function getFormHTML() {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pesquisa RH - Capital Realty</title>
-  <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
-  <script defer src="https://code.getmdl.io/1.3.0/material.min.js"><\/script>
   <style>
-    body {
-      font-family: 'Roboto', sans-serif;
+    * {
       margin: 0;
-      padding: 20px;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
+      padding: 20px;
     }
 
     .container {
       max-width: 600px;
       margin: 0 auto;
       background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
       padding: 40px;
     }
 
     h1 {
       color: #333;
       text-align: center;
-      margin-top: 0;
+      margin-bottom: 30px;
       font-size: 28px;
     }
 
     .form-group {
-      margin-bottom: 30px;
+      margin-bottom: 28px;
     }
 
     label {
       display: block;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       font-weight: 500;
       color: #333;
-      font-size: 14px;
+      font-size: 15px;
     }
 
-    .mdl-textfield {
+    select, textarea {
       width: 100%;
-      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    textarea {
+      resize: vertical;
+      height: 100px;
     }
 
     .rating-group {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       margin-top: 10px;
+      flex-wrap: wrap;
     }
 
     .emoji-btn {
-      background: none;
-      border: 2px solid #ddd;
-      padding: 10px 15px;
-      font-size: 24px;
+      background: white;
+      border: 2px solid #e0e0e0;
+      padding: 10px 12px;
+      font-size: 28px;
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.2s;
+      flex: 1;
+      min-width: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .emoji-btn:hover {
       border-color: #667eea;
-      transform: scale(1.1);
+      background: #f8f9ff;
+      transform: scale(1.05);
     }
 
     .emoji-btn.selected {
       border-color: #667eea;
-      background: #f0f4ff;
-      transform: scale(1.15);
+      background: #667eea;
+      color: white;
+      transform: scale(1.1);
     }
 
-    .mdl-button {
+    .submit-btn {
       width: 100%;
+      padding: 12px;
       margin-top: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
     }
 
-    .error {
-      color: #d32f2f;
-      font-size: 12px;
-      margin-top: 5px;
+    .submit-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
     }
 
     .success-message {
@@ -162,15 +202,29 @@ function getFormHTML() {
       background: #4caf50;
       color: white;
       padding: 15px;
-      border-radius: 4px;
+      border-radius: 8px;
       margin-bottom: 20px;
       text-align: center;
+      font-weight: 500;
     }
 
     .loading {
       display: none;
       text-align: center;
       color: #667eea;
+      margin-top: 15px;
+      font-weight: 500;
+    }
+
+    .error {
+      color: #d32f2f;
+      font-size: 13px;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .error.show {
+      display: block;
     }
   </style>
 </head>
@@ -183,10 +237,9 @@ function getFormHTML() {
     </div>
 
     <form id="pesquisaForm">
-      <!-- Dados básicos -->
       <div class="form-group">
         <label>Departamento *</label>
-        <select id="departamento" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
+        <select id="departamento" required>
           <option value="">Selecione...</option>
           <option value="RH">RH</option>
           <option value="TI">TI</option>
@@ -196,10 +249,9 @@ function getFormHTML() {
         </select>
       </div>
 
-      <!-- Pergunta 1 -->
       <div class="form-group">
         <label>1. Como você avalia a comunicação interna? *</label>
-        <div class="rating-group">
+        <div class="rating-group" data-question="1">
           <button type="button" class="emoji-btn" data-value="1">😞</button>
           <button type="button" class="emoji-btn" data-value="2">😕</button>
           <button type="button" class="emoji-btn" data-value="3">😐</button>
@@ -209,10 +261,9 @@ function getFormHTML() {
         <div class="error" id="error1"></div>
       </div>
 
-      <!-- Pergunta 2 -->
       <div class="form-group">
         <label>2. Qualidade do serviço prestado pela sua área? *</label>
-        <div class="rating-group">
+        <div class="rating-group" data-question="2">
           <button type="button" class="emoji-btn" data-value="1">😞</button>
           <button type="button" class="emoji-btn" data-value="2">😕</button>
           <button type="button" class="emoji-btn" data-value="3">😐</button>
@@ -222,10 +273,9 @@ function getFormHTML() {
         <div class="error" id="error2"></div>
       </div>
 
-      <!-- Pergunta 3 -->
       <div class="form-group">
         <label>3. Integração e parceria entre departamentos? *</label>
-        <div class="rating-group">
+        <div class="rating-group" data-question="3">
           <button type="button" class="emoji-btn" data-value="1">😞</button>
           <button type="button" class="emoji-btn" data-value="2">😕</button>
           <button type="button" class="emoji-btn" data-value="3">😐</button>
@@ -235,59 +285,35 @@ function getFormHTML() {
         <div class="error" id="error3"></div>
       </div>
 
-      <!-- Comentário opcional -->
       <div class="form-group">
         <label>Comentários adicionais (opcional)</label>
-        <textarea id="comentario"
-                  placeholder="Compartilhe sua opinião..."
-                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; height: 100px;"></textarea>
+        <textarea id="comentario" placeholder="Compartilhe sua opinião..."></textarea>
       </div>
 
-      <!-- Botão enviar -->
-      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
-              type="submit"
-              id="submitBtn">
-        Enviar Resposta
-      </button>
-
-      <div class="loading" id="loadingMsg">
-        ⏳ Enviando...
-      </div>
+      <button class="submit-btn" type="submit" id="submitBtn">Enviar Resposta</button>
+      <div class="loading" id="loadingMsg">⏳ Enviando...</div>
     </form>
   </div>
 
   <script>
-    // Store selected ratings
     const ratings = {};
 
-    // Handle emoji button clicks
-    document.querySelectorAll('.emoji-btn').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        e.preventDefault();
-
-        // Get the rating group
-        const group = this.parentElement;
-        const questionNum = Array.from(group.parentElement.parentElement.querySelectorAll('.form-group')).indexOf(this.closest('.form-group')) + 1;
-
-        // Remove previous selection in this group
-        group.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
-
-        // Select this button
-        this.classList.add('selected');
-
-        // Store rating
-        ratings['pergunta_' + questionNum] = parseInt(this.dataset.value);
-
-        // Clear error
-        document.getElementById('error' + questionNum).textContent = '';
+    document.querySelectorAll('.rating-group').forEach(group => {
+      const questionNum = group.dataset.question;
+      group.querySelectorAll('.emoji-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          group.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+          this.classList.add('selected');
+          ratings['pergunta_' + questionNum] = parseInt(this.dataset.value);
+          document.getElementById('error' + questionNum).classList.remove('show');
+        });
       });
     });
 
-    // Handle form submission
     document.getElementById('pesquisaForm').addEventListener('submit', function(e) {
       e.preventDefault();
 
-      // Validação
       const departamento = document.getElementById('departamento').value;
       if (!departamento) {
         alert('Por favor, selecione seu departamento');
@@ -299,7 +325,6 @@ function getFormHTML() {
         return;
       }
 
-      // Prepare data
       const data = {
         pesquisa_id: 'pesquisa_001',
         departamento: departamento,
@@ -308,29 +333,21 @@ function getFormHTML() {
         timestamp: new Date().toISOString()
       };
 
-      // Show loading
       document.getElementById('loadingMsg').style.display = 'block';
       document.getElementById('submitBtn').disabled = true;
 
-      // Submit
       google.script.run.withSuccessHandler(function(result) {
         if (result.success) {
           document.getElementById('successMessage').style.display = 'block';
-          document.getElementById('pesquisaForm').reset();
-          document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
-          Object.keys(ratings).forEach(k => delete ratings[k]);
-
-          // Hide form after 2 seconds
-          setTimeout(function() {
-            document.getElementById('pesquisaForm').style.display = 'none';
-            document.getElementById('successMessage').textContent = '✓ Obrigado por responder!\\n\\nSua resposta foi registrada com sucesso.';
-          }, 1000);
+          document.getElementById('pesquisaForm').style.display = 'none';
+          setTimeout(() => {
+            document.getElementById('successMessage').innerHTML = '✓ Obrigado por responder!<br><br>Sua resposta foi registrada com sucesso.';
+          }, 500);
         } else {
           alert('Erro: ' + result.error);
+          document.getElementById('loadingMsg').style.display = 'none';
+          document.getElementById('submitBtn').disabled = false;
         }
-
-        document.getElementById('loadingMsg').style.display = 'none';
-        document.getElementById('submitBtn').disabled = false;
       }).withFailureHandler(function(error) {
         alert('Erro ao enviar: ' + error);
         document.getElementById('loadingMsg').style.display = 'none';
