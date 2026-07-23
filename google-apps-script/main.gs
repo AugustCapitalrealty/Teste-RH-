@@ -65,7 +65,7 @@ function submitForm(data) {
 }
 
 /**
- * Retorna o HTML do formulário
+ * Retorna o HTML do formulário com navegação passo-a-passo
  */
 function getFormHTML() {
   return `
@@ -74,13 +74,9 @@ function getFormHTML() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pesquisa RH - Capital Realty</title>
+  <title>Pesquisa RH 360º - Capital Realty</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
@@ -90,7 +86,7 @@ function getFormHTML() {
     }
 
     .container {
-      max-width: 600px;
+      max-width: 700px;
       margin: 0 auto;
       background: white;
       border-radius: 12px;
@@ -98,15 +94,64 @@ function getFormHTML() {
       padding: 40px;
     }
 
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      margin-bottom: 30px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: width 0.3s;
+    }
+
     h1 {
       color: #333;
       text-align: center;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
       margin-bottom: 30px;
+    }
+
+    .stage-intro {
+      text-align: center;
+    }
+
+    .stage-intro h2 {
       font-size: 28px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .stage-intro p {
+      font-size: 16px;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .info-box {
+      background: #f0f4ff;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 6px;
+      font-size: 14px;
+      color: #555;
     }
 
     .form-group {
-      margin-bottom: 28px;
+      margin-bottom: 24px;
     }
 
     label {
@@ -138,26 +183,35 @@ function getFormHTML() {
       height: 100px;
     }
 
+    .scale-labels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      font-size: 11px;
+      color: #999;
+      margin-bottom: 8px;
+      margin-top: -6px;
+    }
+
     .rating-group {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin: 12px 0 8px 0;
     }
 
     .emoji-btn {
       background: white;
       border: 2px solid #e0e0e0;
-      padding: 10px 12px;
-      font-size: 28px;
+      padding: 12px 8px;
+      font-size: 24px;
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s;
-      flex: 1;
-      min-width: 50px;
       display: flex;
       align-items: center;
       justify-content: center;
+      aspect-ratio: 1;
     }
 
     .emoji-btn:hover {
@@ -169,191 +223,290 @@ function getFormHTML() {
     .emoji-btn.selected {
       border-color: #667eea;
       background: #667eea;
-      color: white;
       transform: scale(1.1);
     }
 
-    .submit-btn {
-      width: 100%;
-      padding: 12px;
-      margin-top: 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+    .na-btn {
+      grid-column: 1 / -1;
+      padding: 8px !important;
+      font-size: 13px;
+      border-style: dashed !important;
+      aspect-ratio: auto;
+    }
+
+    .na-btn.selected {
+      background: #f0f0f0 !important;
+      border-color: #666 !important;
+      color: #333;
+    }
+
+    .navigation {
+      display: flex;
+      gap: 12px;
+      margin-top: 30px;
+      justify-content: space-between;
+    }
+
+    .btn {
+      padding: 12px 24px;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s;
     }
 
-    .submit-btn:hover:not(:disabled) {
+    .btn-prev {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-prev:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-next, .btn-submit {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      flex: 1;
+    }
+
+    .btn-next:hover:not(:disabled), .btn-submit:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
     }
 
-    .submit-btn:disabled {
-      opacity: 0.7;
+    .btn:disabled {
+      opacity: 0.5;
       cursor: not-allowed;
     }
 
     .success-message {
       display: none;
-      background: #4caf50;
-      color: white;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
       text-align: center;
-      font-weight: 500;
+      padding: 40px;
     }
 
-    .loading {
-      display: none;
-      text-align: center;
-      color: #667eea;
-      margin-top: 15px;
-      font-weight: 500;
+    .success-message h2 {
+      font-size: 32px;
+      color: #4caf50;
+      margin-bottom: 15px;
     }
 
-    .error {
-      color: #d32f2f;
-      font-size: 13px;
-      margin-top: 5px;
-      display: none;
+    .success-message p {
+      font-size: 16px;
+      color: #666;
+      line-height: 1.6;
     }
 
-    .error.show {
-      display: block;
-    }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>📊 Pesquisa RH</h1>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 
-    <div class="success-message" id="successMessage">
-      ✓ Resposta enviada com sucesso!
+    <h1>📊 Pesquisa RH 360º</h1>
+
+    <!-- INTRO -->
+    <div id="stageIntro" class="stage-intro">
+      <h2>Bem-vindo!</h2>
+      <p>Sua avaliação é importante para o desenvolvimento dos nossos times.</p>
+      <div class="info-box">
+        <strong>💡 Dica de anonimato:</strong> não inclua nomes, e-mails ou telefones. As respostas são anônimas.
+      </div>
+      <p style="font-size: 14px; color: #888;">
+        Esta pesquisa leva aproximadamente 5 minutos para ser respondida.
+      </p>
+      <div class="navigation">
+        <button class="btn btn-next" onclick="startSurvey()">Começar</button>
+      </div>
     </div>
 
-    <form id="pesquisaForm">
-      <div class="form-group">
-        <label>Departamento *</label>
-        <select id="departamento" required>
-          <option value="">Selecione...</option>
-          <option value="RH">RH</option>
-          <option value="TI">TI</option>
-          <option value="Comercial">Comercial</option>
-          <option value="Operações">Operações</option>
-          <option value="Administrativo">Administrativo</option>
-        </select>
+    <!-- SURVEY -->
+    <div id="stageSurvey" class="hidden">
+      <div class="subtitle" id="sectionTitle"></div>
+
+      <div id="questionsContainer"></div>
+
+      <div class="form-group hidden" id="abertas1Group">
+        <label>O que esta área faz muito bem?</label>
+        <textarea id="aberta1" placeholder="Ex.: a área é muito ágil e me responde sempre no mesmo dia."></textarea>
       </div>
 
-      <div class="form-group">
-        <label>1. Como você avalia a comunicação interna? *</label>
-        <div class="rating-group" data-question="1">
-          <button type="button" class="emoji-btn" data-value="1">😞</button>
-          <button type="button" class="emoji-btn" data-value="2">😕</button>
-          <button type="button" class="emoji-btn" data-value="3">😐</button>
-          <button type="button" class="emoji-btn" data-value="4">🙂</button>
-          <button type="button" class="emoji-btn" data-value="5">😄</button>
-        </div>
-        <div class="error" id="error1"></div>
+      <div class="form-group hidden" id="abertas2Group">
+        <label>O que esta área poderia melhorar na interação com o seu setor?</label>
+        <textarea id="aberta2" placeholder="Ex.: alinhar prazos antes de iniciar uma demanda nova."></textarea>
       </div>
 
-      <div class="form-group">
-        <label>2. Qualidade do serviço prestado pela sua área? *</label>
-        <div class="rating-group" data-question="2">
-          <button type="button" class="emoji-btn" data-value="1">😞</button>
-          <button type="button" class="emoji-btn" data-value="2">😕</button>
-          <button type="button" class="emoji-btn" data-value="3">😐</button>
-          <button type="button" class="emoji-btn" data-value="4">🙂</button>
-          <button type="button" class="emoji-btn" data-value="5">😄</button>
-        </div>
-        <div class="error" id="error2"></div>
+      <div class="navigation">
+        <button class="btn btn-prev" id="btnPrev" onclick="previousSection()">← Anterior</button>
+        <button class="btn btn-next" id="btnNext" onclick="nextSection()">Próximo →</button>
+        <button class="btn btn-submit hidden" id="btnSubmit" onclick="submitSurvey()">Enviar</button>
       </div>
+    </div>
 
-      <div class="form-group">
-        <label>3. Integração e parceria entre departamentos? *</label>
-        <div class="rating-group" data-question="3">
-          <button type="button" class="emoji-btn" data-value="1">😞</button>
-          <button type="button" class="emoji-btn" data-value="2">😕</button>
-          <button type="button" class="emoji-btn" data-value="3">😐</button>
-          <button type="button" class="emoji-btn" data-value="4">🙂</button>
-          <button type="button" class="emoji-btn" data-value="5">😄</button>
-        </div>
-        <div class="error" id="error3"></div>
-      </div>
-
-      <div class="form-group">
-        <label>Comentários adicionais (opcional)</label>
-        <textarea id="comentario" placeholder="Compartilhe sua opinião..."></textarea>
-      </div>
-
-      <button class="submit-btn" type="submit" id="submitBtn">Enviar Resposta</button>
-      <div class="loading" id="loadingMsg">⏳ Enviando...</div>
-    </form>
+    <!-- SUCCESS -->
+    <div id="stageSuccess" class="success-message">
+      <h2>🎉 Obrigado!</h2>
+      <p>Sua resposta foi registrada com sucesso.</p>
+      <p style="margin-top: 20px; font-size: 14px; color: #999;">Sua contribuição é valiosa para melhorar nossos processos.</p>
+    </div>
   </div>
 
   <script>
-    const ratings = {};
+    const sections = [
+      {
+        titulo: "1. Comunicação",
+        perguntas: [
+          { texto: "Como você avalia a clareza da comunicação dessa área?", familia: "satisfacao" },
+          { texto: "Como você avalia a cordialidade dessa área?", familia: "satisfacao" },
+          { texto: "Como você avalia a transparência da comunicação dessa área?", familia: "satisfacao" }
+        ]
+      },
+      {
+        titulo: "2. Agilidade (SLA)",
+        perguntas: [
+          { texto: "Como você avalia a velocidade de resposta dessa área?", familia: "satisfacao" },
+          { texto: "Como você avalia o cumprimento dos prazos acordados por essa área?", familia: "satisfacao" }
+        ]
+      },
+      {
+        titulo: "3. Qualidade de entrega",
+        perguntas: [
+          { texto: "Como você avalia a assertividade e a qualidade das soluções entregues por essa área?", familia: "satisfacao" }
+        ]
+      },
+      {
+        titulo: "4. Parceria e colaboração",
+        perguntas: [
+          { texto: "O quanto você sente que essa área atua como uma parceria estratégica do seu setor?", familia: "concordancia" }
+        ]
+      },
+      {
+        titulo: "5. Grau de esforço",
+        perguntas: [
+          { texto: "Esta área simplifica a resolução dos problemas ou solicitações do meu setor?", familia: "concordancia" }
+        ]
+      }
+    ];
 
-    document.querySelectorAll('.rating-group').forEach(group => {
-      const questionNum = group.dataset.question;
-      group.querySelectorAll('.emoji-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
+    const EMOJIS = ["😞", "😕", "😐", "🙂", "😄"];
+    const LABELS_SAT = ["Muito insatisfeito", "Insatisfeito", "Neutro", "Satisfeito", "Muito satisfeito"];
+    const LABELS_CON = ["Discordo totalmente", "Discordo", "Neutro", "Concordo", "Concordo totalmente"];
+
+    let currentStep = 0;
+    let respostas = {};
+
+    function updateProgress() {
+      const totalSteps = sections.length;
+      const progress = ((currentStep + 1) / totalSteps) * 100;
+      document.getElementById('progressFill').style.width = progress + '%';
+    }
+
+    function renderQuestions() {
+      const section = sections[currentStep];
+      document.getElementById('sectionTitle').textContent = section.titulo;
+
+      const container = document.getElementById('questionsContainer');
+      container.innerHTML = '';
+
+      section.perguntas.forEach((pergunta, idx) => {
+        const labels = pergunta.familia === 'satisfacao' ? LABELS_SAT : LABELS_CON;
+        const key = currentStep + '_' + idx;
+
+        const html = \`
+          <div class="form-group">
+            <label>\${pergunta.texto} *</label>
+            <div class="scale-labels">
+              <span>\${labels[0]}</span>
+              <span style="text-align: right;">\${labels[4]}</span>
+            </div>
+            <div class="rating-group" data-key="\${key}">
+              \${EMOJIS.map((emoji, i) => \`
+                <button type="button" class="emoji-btn" data-value="\${i + 1}" data-key="\${key}">\${emoji}</button>
+              \`).join('')}
+              <button type="button" class="emoji-btn na-btn" data-value="na" data-key="\${key}" style="grid-column: 1 / -1;">N/A</button>
+            </div>
+          </div>
+        \`;
+        container.innerHTML += html;
+      });
+
+      document.querySelectorAll('.emoji-btn').forEach(btn => {
+        const key = btn.dataset.key;
+        const value = btn.dataset.value;
+        if (respostas[key] == value) btn.classList.add('selected');
+        btn.addEventListener('click', (e) => {
           e.preventDefault();
-          group.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
-          this.classList.add('selected');
-          ratings['pergunta_' + questionNum] = parseInt(this.dataset.value);
-          document.getElementById('error' + questionNum).classList.remove('show');
+          document.querySelectorAll(\`[data-key="\${key}"]\`).forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          respostas[key] = value;
         });
       });
-    });
 
-    document.getElementById('pesquisaForm').addEventListener('submit', function(e) {
-      e.preventDefault();
+      const totalSteps = sections.length;
+      const isLast = currentStep === totalSteps - 1;
 
-      const departamento = document.getElementById('departamento').value;
-      if (!departamento) {
-        alert('Por favor, selecione seu departamento');
-        return;
+      document.getElementById('btnPrev').classList.toggle('hidden', currentStep === 0);
+      document.getElementById('btnNext').classList.toggle('hidden', isLast);
+      document.getElementById('btnSubmit').classList.toggle('hidden', !isLast);
+      document.getElementById('abertas1Group').classList.toggle('hidden', !isLast);
+      document.getElementById('abertas2Group').classList.toggle('hidden', !isLast);
+
+      updateProgress();
+    }
+
+    function startSurvey() {
+      document.getElementById('stageIntro').classList.add('hidden');
+      document.getElementById('stageSurvey').classList.remove('hidden');
+      renderQuestions();
+    }
+
+    function nextSection() {
+      if (currentStep < sections.length - 1) {
+        currentStep++;
+        renderQuestions();
+        window.scrollTo(0, 0);
       }
+    }
 
-      if (Object.keys(ratings).length < 3) {
-        alert('Por favor, responda todas as 3 perguntas');
+    function previousSection() {
+      if (currentStep > 0) {
+        currentStep--;
+        renderQuestions();
+        window.scrollTo(0, 0);
+      }
+    }
+
+    function submitSurvey() {
+      const totalPerguntas = sections.reduce((sum, s) => sum + s.perguntas.length, 0);
+      const respostasCount = Object.keys(respostas).filter(k => respostas[k]).length;
+
+      if (respostasCount < totalPerguntas) {
+        alert('Por favor, responda todas as perguntas');
         return;
       }
 
       const data = {
-        pesquisa_id: 'pesquisa_001',
-        departamento: departamento,
-        respostas: ratings,
-        comentario: document.getElementById('comentario').value || '',
+        pesquisa_id: 'pesquisa_360',
+        respostas: respostas,
+        aberta_1: document.getElementById('aberta1').value || '',
+        aberta_2: document.getElementById('aberta2').value || '',
         timestamp: new Date().toISOString()
       };
 
-      document.getElementById('loadingMsg').style.display = 'block';
-      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('stageSurvey').classList.add('hidden');
+      document.getElementById('stageSuccess').classList.remove('hidden');
 
-      google.script.run.withSuccessHandler(function(result) {
-        if (result.success) {
-          document.getElementById('successMessage').style.display = 'block';
-          document.getElementById('pesquisaForm').style.display = 'none';
-          setTimeout(() => {
-            document.getElementById('successMessage').innerHTML = '✓ Obrigado por responder!<br><br>Sua resposta foi registrada com sucesso.';
-          }, 500);
-        } else {
-          alert('Erro: ' + result.error);
-          document.getElementById('loadingMsg').style.display = 'none';
-          document.getElementById('submitBtn').disabled = false;
-        }
-      }).withFailureHandler(function(error) {
-        alert('Erro ao enviar: ' + error);
-        document.getElementById('loadingMsg').style.display = 'none';
-        document.getElementById('submitBtn').disabled = false;
+      google.script.run.withSuccessHandler(() => {
+        console.log('Resposta salva');
+      }).withFailureHandler((error) => {
+        console.error('Erro:', error);
+        alert('Erro ao salvar: ' + error);
       }).submitForm(data);
-    });
+    }
   </script>
 </body>
 </html>

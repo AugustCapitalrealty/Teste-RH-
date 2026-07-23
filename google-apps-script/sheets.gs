@@ -1,9 +1,8 @@
 /**
- * Salva resposta em Google Sheets
+ * Salva resposta em Google Sheets (novo formato com múltiplas seções)
  */
 function saveResponseToSheet(data) {
   try {
-    // Abre o spreadsheet pelo ID
     const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
 
     // Cria aba "Respostas" se não existir
@@ -13,25 +12,29 @@ function saveResponseToSheet(data) {
       createResponsesHeader(sheet);
     }
 
-    // Prepara row para inserir
-    const row = [
-      new Date().toISOString(),
-      data.departamento,
-      data.respostas.pergunta_1 || '',
-      data.respostas.pergunta_2 || '',
-      data.respostas.pergunta_3 || '',
-      data.comentario || '',
-      Utilities.getUuid() // ID único
-    ];
+    const respondentId = Utilities.getUuid();
+    const timestamp = data.timestamp || new Date().toISOString();
 
-    // Insere na próxima linha vazia
-    sheet.appendRow(row);
+    // Salva cada resposta em uma linha
+    // Formato: Timestamp | ID | Seção_Pergunta | Resposta | Aberta1 | Aberta2
+    for (const key in data.respostas) {
+      if (key !== 'pesquisa_id') {
+        const row = [
+          timestamp,
+          respondentId,
+          key, // "0_0", "0_1", etc
+          data.respostas[key],
+          data.aberta_1 || '',
+          data.aberta_2 || ''
+        ];
+        sheet.appendRow(row);
+      }
+    }
 
-    // Retorna resultado
     return {
       success: true,
-      id: row[6],
-      timestamp: row[0]
+      id: respondentId,
+      timestamp: timestamp
     };
 
   } catch (error) {
@@ -46,12 +49,11 @@ function saveResponseToSheet(data) {
 function createResponsesHeader(sheet) {
   const headers = [
     'Timestamp',
-    'Departamento',
-    'Pergunta 1 - Comunicação',
-    'Pergunta 2 - Qualidade',
-    'Pergunta 3 - Parceria',
-    'Comentário',
-    'ID'
+    'Respondente ID',
+    'Pergunta',
+    'Resposta',
+    'Aberta 1 (Pontos Fortes)',
+    'Aberta 2 (Melhorias)'
   ];
 
   sheet.appendRow(headers);
