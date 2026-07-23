@@ -3,8 +3,8 @@
  */
 function saveResponseToSheet(data) {
   try {
-    // Pega o spreadsheet
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Abre o spreadsheet pelo ID
+    const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
 
     // Cria aba "Respostas" se não existir
     let sheet = ss.getSheetByName('Respostas');
@@ -72,7 +72,7 @@ function createResponsesHeader(sheet) {
  * Cria aba CONFIG se não existir
  */
 function initializeSpreadsheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
 
   // Cria aba CONFIG
   let configSheet = ss.getSheetByName('CONFIG');
@@ -103,9 +103,10 @@ function initializeSpreadsheet() {
  * Função para testar - cria dados de exemplo
  */
 function seedTestData() {
-  const respostasSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Respostas');
+  const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
+  const respostasSheet = ss.getSheetByName('Respostas');
   if (!respostasSheet) {
-    createResponsesHeader(SpreadsheetApp.getActiveSpreadsheet().insertSheet('Respostas'));
+    createResponsesHeader(ss.insertSheet('Respostas'));
   }
 
   // Adiciona 10 respostas de teste
@@ -130,7 +131,7 @@ function seedTestData() {
  * Calcula estatísticas das respostas
  */
 function calculateStats() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
   const respostasSheet = ss.getSheetByName('Respostas');
   const analiseSheet = ss.getSheetByName('ANALISE');
 
