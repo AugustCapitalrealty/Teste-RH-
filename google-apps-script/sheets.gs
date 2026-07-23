@@ -16,8 +16,12 @@ const QUESTION_TEXTS = [
 
 /**
  * Salva resposta em Google Sheets.
- * Formato recebido: { pesquisa_id, sua_area, avaliacoes: [{ area_avaliada, is_autoavaliacao, respostas: {q0..q7}, abertas: {q8,q9} }] }
- * Grava uma linha por (área avaliada x pergunta).
+ * Formato recebido: { pesquisa_id, avaliacoes: [{ area_avaliada, is_autoavaliacao, respostas: {q0..q7}, abertas: {q8,q9} }] }
+ *
+ * Cada área avaliada vira um grupo de linhas com um ID aleatório PRÓPRIO (não compartilhado
+ * entre as áreas de uma mesma pessoa) — isso evita que alguém consiga juntar todas as respostas
+ * de um mesmo respondente cruzando um ID comum, replicando o desacoplamento por avaliação que o
+ * projeto original (Lovable) garante via "avaliacao_id" + sort_key aleatório.
  */
 function saveResponseToSheet(data) {
   try {
@@ -29,12 +33,11 @@ function saveResponseToSheet(data) {
       createResponsesHeader(sheet);
     }
 
-    const respondentId = Utilities.getUuid();
     const timestamp = data.timestamp || new Date().toISOString();
-    const suaArea = data.sua_area || '';
     const rows = [];
 
     (data.avaliacoes || []).forEach(function(avaliacao) {
+      const avaliacaoId = Utilities.getUuid(); // ID próprio desta área, não ligado às demais
       const areaAvaliada = avaliacao.area_avaliada || '';
       const isAuto = !!avaliacao.is_autoavaliacao;
 
@@ -43,8 +46,7 @@ function saveResponseToSheet(data) {
         const qIdx = parseInt(key.replace('q', ''), 10);
         rows.push([
           timestamp,
-          respondentId,
-          suaArea,
+          avaliacaoId,
           areaAvaliada,
           isAuto ? 'Sim' : 'Não',
           QUESTION_TEXTS[qIdx] || key,
@@ -59,8 +61,7 @@ function saveResponseToSheet(data) {
         const qIdx = parseInt(key.replace('q', ''), 10);
         rows.push([
           timestamp,
-          respondentId,
-          suaArea,
+          avaliacaoId,
           areaAvaliada,
           isAuto ? 'Sim' : 'Não',
           QUESTION_TEXTS[qIdx] || key,
@@ -74,11 +75,7 @@ function saveResponseToSheet(data) {
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
     }
 
-    return {
-      success: true,
-      id: respondentId,
-      timestamp: timestamp
-    };
+    return { success: true };
 
   } catch (error) {
     Logger.log('Erro ao salvar em Sheets: ' + error);
@@ -92,8 +89,7 @@ function saveResponseToSheet(data) {
 function createResponsesHeader(sheet) {
   const headers = [
     'Timestamp',
-    'Respondente ID',
-    'Sua Área',
+    'Avaliação ID',
     'Área Avaliada',
     'Autoavaliação',
     'Pergunta',
@@ -168,7 +164,6 @@ function seedTestData() {
     });
 
     saveResponseToSheet({
-      sua_area: suaArea,
       avaliacoes: avaliacoes,
       timestamp: new Date(Date.now() - r * 3600000).toISOString()
     });
@@ -190,14 +185,14 @@ function calculateStats() {
   const data = respostasSheet.getDataRange().getValues();
   if (data.length < 2) return;
 
-  // Colunas: Timestamp | Respondente ID | Sua Área | Área Avaliada | Autoavaliação | Pergunta | Tipo | Resposta
+  // Colunas: Timestamp | Avaliação ID | Área Avaliada | Autoavaliação | Pergunta | Tipo | Resposta
   const statsByArea = {};
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const areaAvaliada = row[3];
-    const tipo = row[6];
-    const resposta = row[7];
+    const areaAvaliada = row[2];
+    const tipo = row[5];
+    const resposta = row[6];
 
     if (tipo !== 'rating' || resposta === 'na' || resposta === '') continue;
 
