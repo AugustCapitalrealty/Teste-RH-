@@ -14,14 +14,16 @@ function saveResponseToSheet(data) {
 
     const respondentId = Utilities.getUuid();
     const timestamp = data.timestamp || new Date().toISOString();
+    const areaAvaliada = data.area_avaliada || '';
 
     // Salva cada resposta em uma linha
-    // Formato: Timestamp | ID | Seção_Pergunta | Resposta | Aberta1 | Aberta2
+    // Formato: Timestamp | ID | Área Avaliada | Seção_Pergunta | Resposta | Aberta1 | Aberta2
     for (const key in data.respostas) {
       if (key !== 'pesquisa_id') {
         const row = [
           timestamp,
           respondentId,
+          areaAvaliada,
           key, // "0_0", "0_1", etc
           data.respostas[key],
           data.aberta_1 || '',
@@ -50,6 +52,7 @@ function createResponsesHeader(sheet) {
   const headers = [
     'Timestamp',
     'Respondente ID',
+    'Área Avaliada',
     'Pergunta',
     'Resposta',
     'Aberta 1 (Pontos Fortes)',

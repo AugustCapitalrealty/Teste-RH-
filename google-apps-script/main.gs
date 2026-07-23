@@ -143,11 +143,124 @@ function getFormHTML() {
     .info-box {
       background: #f0f4ff;
       border-left: 4px solid #667eea;
-      padding: 15px;
+      padding: 15px 15px 15px 30px;
       margin: 20px 0;
       border-radius: 6px;
-      font-size: 14px;
+      font-size: 13px;
       color: #555;
+      text-align: left;
+    }
+
+    .info-box strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-size: 13px;
+      letter-spacing: 0.03em;
+    }
+
+    .info-box ul {
+      margin: 0;
+      padding-left: 18px;
+      line-height: 1.7;
+    }
+
+    .badges {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .badge-green {
+      background: #e8f7ee;
+      color: #1e8a4c;
+    }
+
+    .badge-blue {
+      background: #eef1fb;
+      color: #3d4b9c;
+    }
+
+    .info-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin: 20px 0;
+      text-align: left;
+    }
+
+    .info-card {
+      background: #f7f8fa;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .info-card .label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #999;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .info-card .value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .area-picker {
+      text-align: left;
+      margin: 24px 0;
+    }
+
+    .area-picker label {
+      text-align: center;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .chip {
+      padding: 8px 16px;
+      border: 1.5px solid #ddd;
+      border-radius: 999px;
+      background: white;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: #444;
+    }
+
+    .chip:hover {
+      border-color: #667eea;
+      color: #667eea;
+    }
+
+    .chip.selected {
+      background: #667eea;
+      border-color: #667eea;
+      color: white;
+      font-weight: 600;
     }
 
     .form-group {
@@ -311,16 +424,53 @@ function getFormHTML() {
 
     <!-- INTRO -->
     <div id="stageIntro" class="stage-intro">
-      <h2>Bem-vindo!</h2>
-      <p>Sua avaliação é importante para o desenvolvimento dos nossos times.</p>
-      <div class="info-box">
-        <strong>💡 Dica de anonimato:</strong> não inclua nomes, e-mails ou telefones. As respostas são anônimas.
+      <div class="badges">
+        <span class="badge badge-green">🛡️ Pesquisa Anônima</span>
+        <span class="badge badge-blue">🏢 Capital Realty</span>
       </div>
-      <p style="font-size: 14px; color: #888;">
-        Esta pesquisa leva aproximadamente 5 minutos para ser respondida.
-      </p>
+
+      <h2 style="font-size: 22px; margin-bottom: 8px;">Pesquisa de Satisfação Interdepartamental</h2>
+      <p>Avalie a área com a qual você mais interage no dia a dia. Suas respostas são totalmente anônimas.</p>
+
+      <div class="info-box">
+        <strong>⚙️ COMO FUNCIONA</strong>
+        <ul>
+          <li>Cada tela tem <strong>1 pergunta</strong>, respondida em escala de emoji</li>
+          <li>Selecione a opção que melhor representa sua experiência 😞 😕 😐 🙂 😄 — ou <strong>N/A</strong> se você não tem interação com aquela área</li>
+          <li>São <strong>8 perguntas objetivas</strong> + <strong>2 comentários opcionais</strong></li>
+        </ul>
+      </div>
+
+      <div class="info-cards">
+        <div class="info-card">
+          <div class="label">Perguntas</div>
+          <div class="value">8 objetivas</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Tempo estimado</div>
+          <div class="value">~5 minutos</div>
+        </div>
+      </div>
+
+      <div class="area-picker">
+        <label>Qual área você deseja avaliar? *</label>
+        <div class="chips" id="areaChips">
+          <button type="button" class="chip" data-area="Administrativo/Secretarias">Administrativo/Secretarias</button>
+          <button type="button" class="chip" data-area="Arquitetura">Arquitetura</button>
+          <button type="button" class="chip" data-area="Comercial/Marketing">Comercial/Marketing</button>
+          <button type="button" class="chip" data-area="Diretoria">Diretoria</button>
+          <button type="button" class="chip" data-area="Engenharia">Engenharia</button>
+          <button type="button" class="chip" data-area="Facilities">Facilities</button>
+          <button type="button" class="chip" data-area="Financeiro/Contábil">Financeiro/Contábil</button>
+          <button type="button" class="chip" data-area="Jurídico">Jurídico</button>
+          <button type="button" class="chip" data-area="Propriedades">Propriedades</button>
+          <button type="button" class="chip" data-area="Recursos Humanos">Recursos Humanos</button>
+          <button type="button" class="chip" data-area="Tecnologia da Informação">Tecnologia da Informação</button>
+        </div>
+      </div>
+
       <div class="navigation">
-        <button class="btn btn-next" onclick="startSurvey()">Começar</button>
+        <button class="btn btn-next" id="btnStart" onclick="startSurvey()" disabled>Começar →</button>
       </div>
     </div>
 
@@ -398,6 +548,16 @@ function getFormHTML() {
 
     let currentStep = 0;
     let respostas = {};
+    let areaAvaliada = '';
+
+    document.querySelectorAll('#areaChips .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#areaChips .chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+        areaAvaliada = chip.dataset.area;
+        document.getElementById('btnStart').disabled = false;
+      });
+    });
 
     function updateProgress() {
       const totalSteps = sections.length;
@@ -407,7 +567,7 @@ function getFormHTML() {
 
     function renderQuestions() {
       const section = sections[currentStep];
-      document.getElementById('sectionTitle').textContent = section.titulo;
+      document.getElementById('sectionTitle').textContent = section.titulo + ' — Avaliando: ' + areaAvaliada;
 
       const container = document.getElementById('questionsContainer');
       container.innerHTML = '';
@@ -491,6 +651,7 @@ function getFormHTML() {
 
       const data = {
         pesquisa_id: 'pesquisa_360',
+        area_avaliada: areaAvaliada,
         respostas: respostas,
         aberta_1: document.getElementById('aberta1').value || '',
         aberta_2: document.getElementById('aberta2').value || '',
