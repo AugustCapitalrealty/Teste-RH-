@@ -143,12 +143,12 @@ function initializeSpreadsheet() {
 function seedTestData() {
   const areas = [
     'Planejamento & Gestão', 'Administrativo/Secretarias', 'Arquitetura',
-    'Comercial/Marketing', 'Diretoria', 'Engenharia', 'Facilities',
+    'Comercial/Marketing', 'Deminvest', 'Diretoria', 'Engenharia', 'Facilities',
     'Financeiro/Contábil', 'Jurídico', 'Propriedades', 'Recursos Humanos',
     'Tecnologia da Informação'
   ];
 
-  for (let r = 0; r < 2; r++) {
+  for (let r = 0; r < 6; r++) {
     const suaArea = areas[r];
     const avaliacoes = areas.map(function(area) {
       const respostas = {};
@@ -172,49 +172,123 @@ function seedTestData() {
   Logger.log('Respostas de teste inseridas!');
 }
 
+// Anonimato por grupo: só mostra números de áreas com pelo menos K respondentes distintos
+const K_MIN = 5;
+
+// Critérios objetivos (perguntas de nota), na mesma ordem do formulário
+const CRITERIOS = [
+  'Clareza da comunicação',
+  'Cordialidade',
+  'Transparência da comunicação',
+  'Velocidade de resposta',
+  'Cumprimento de prazos (SLA)',
+  'Qualidade das soluções entregues',
+  'Parceria estratégica',
+  'Grau de esforço / simplicidade'
+];
+
 /**
- * Calcula estatísticas (média geral por área avaliada) a partir das notas objetivas
+ * Calcula estatísticas por área avaliada, respeitando o anonimato k=5:
+ * - conta RESPONDENTES DISTINTOS (por Avaliação ID), não linhas
+ * - áreas com menos de K_MIN respostas ficam mascaradas ("— (n<5)")
+ * - médias por critério + média geral
+ * - bloco TOP/BOTTOM com as melhores e piores áreas (apenas as que têm n>=K_MIN)
  */
 function calculateStats() {
   const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
   const respostasSheet = ss.getSheetByName('Respostas');
-  const analiseSheet = ss.getSheetByName('ANALISE');
-
-  if (!respostasSheet || !analiseSheet) return;
+  let analiseSheet = ss.getSheetByName('ANALISE');
+  if (!respostasSheet) return;
+  if (!analiseSheet) analiseSheet = ss.insertSheet('ANALISE');
 
   const data = respostasSheet.getDataRange().getValues();
   if (data.length < 2) return;
 
   // Colunas: Timestamp | Avaliação ID | Área Avaliada | Autoavaliação | Pergunta | Tipo | Resposta
+  // Estrutura: statsByArea[area] = { avaliacoes: Set(ids), criterios: { criterio: {soma,count} } }
   const statsByArea = {};
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
+    const avaliacaoId = row[1];
     const areaAvaliada = row[2];
+    const pergunta = row[4];
     const tipo = row[5];
     const resposta = row[6];
 
-    if (tipo !== 'rating' || resposta === 'na' || resposta === '') continue;
+    if (!areaAvaliada) continue;
 
+    if (!statsByArea[areaAvaliada]) {
+      statsByArea[areaAvaliada] = { avaliacoes: {}, criterios: {} };
+    }
+    // conta avaliação distinta (por área) para o k=5
+    statsByArea[areaAvaliada].avaliacoes[avaliacaoId] = true;
+
+    if (tipo !== 'rating' || resposta === 'na' || resposta === '') continue;
     const nota = parseFloat(resposta);
     if (isNaN(nota)) continue;
 
-    if (!statsByArea[areaAvaliada]) {
-      statsByArea[areaAvaliada] = { count: 0, soma: 0 };
+    if (!statsByArea[areaAvaliada].criterios[pergunta]) {
+      statsByArea[areaAvaliada].criterios[pergunta] = { soma: 0, count: 0 };
     }
-    statsByArea[areaAvaliada].count++;
-    statsByArea[areaAvaliada].soma += nota;
+    statsByArea[areaAvaliada].criterios[pergunta].soma += nota;
+    statsByArea[areaAvaliada].criterios[pergunta].count++;
   }
 
-  if (analiseSheet.getMaxRows() > 1) {
-    analiseSheet.deleteRows(2, analiseSheet.getMaxRows() - 1);
+  // Reconstrói a aba ANALISE do zero
+  analiseSheet.clear();
+
+  const header = ['Área Avaliada', 'Respostas (n)', 'Média Geral'].concat(CRITERIOS);
+  analiseSheet.appendRow(header);
+  analiseSheet.getRange(1, 1, 1, header.length).setBackground('#151E49').setFontColor('#ffffff').setFontWeight('bold');
+
+  const resumo = []; // para top/bottom: { area, n, media }
+
+  Object.keys(statsByArea).sort().forEach(function(area) {
+    const s = statsByArea[area];
+    const n = Object.keys(s.avaliacoes).length;
+
+    if (n < K_MIN) {
+      const linha = [area, n + ' (n<' + K_MIN + ')', '— (n<' + K_MIN + ')'];
+      for (let c = 0; c < CRITERIOS.length; c++) linha.push('—');
+      analiseSheet.appendRow(linha);
+      return;
+    }
+
+    // média por critério e média geral
+    let somaGeral = 0, countGeral = 0;
+    const mediasCriterio = CRITERIOS.map(function(crit) {
+      const cc = s.criterios[crit];
+      if (!cc || cc.count === 0) return '—';
+      somaGeral += cc.soma; countGeral += cc.count;
+      return (cc.soma / cc.count).toFixed(2);
+    });
+    const mediaGeral = countGeral > 0 ? (somaGeral / countGeral) : 0;
+
+    resumo.push({ area: area, n: n, media: mediaGeral });
+    analiseSheet.appendRow([area, n, mediaGeral.toFixed(2)].concat(mediasCriterio));
+  });
+
+  // Bloco TOP / BOTTOM (somente áreas com n>=K_MIN)
+  if (resumo.length > 0) {
+    resumo.sort(function(a, b) { return b.media - a.media; });
+    const limit = Math.min(3, resumo.length);
+
+    analiseSheet.appendRow([]);
+    const topHeaderRow = analiseSheet.getLastRow() + 1;
+    analiseSheet.appendRow(['🏆 MELHORES ÁREAS', 'Respostas (n)', 'Média Geral']);
+    analiseSheet.getRange(topHeaderRow, 1, 1, 3).setBackground('#21C45D').setFontColor('#ffffff').setFontWeight('bold');
+    for (let i = 0; i < limit; i++) analiseSheet.appendRow([resumo[i].area, resumo[i].n, resumo[i].media.toFixed(2)]);
+
+    analiseSheet.appendRow([]);
+    const botHeaderRow = analiseSheet.getLastRow() + 1;
+    analiseSheet.appendRow(['⚠️ ÁREAS A MELHORAR', 'Respostas (n)', 'Média Geral']);
+    analiseSheet.getRange(botHeaderRow, 1, 1, 3).setBackground('#E63351').setFontColor('#ffffff').setFontWeight('bold');
+    for (let i = 0; i < limit; i++) {
+      const item = resumo[resumo.length - 1 - i];
+      analiseSheet.appendRow([item.area, item.n, item.media.toFixed(2)]);
+    }
   }
 
-  for (const area in statsByArea) {
-    const stats = statsByArea[area];
-    const media = (stats.soma / stats.count).toFixed(2);
-    analiseSheet.appendRow([area, stats.count, media]);
-  }
-
-  Logger.log('Estatísticas calculadas!');
+  Logger.log('Estatísticas calculadas! (k=' + K_MIN + ')');
 }
