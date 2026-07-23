@@ -104,9 +104,10 @@ function initializeSpreadsheet() {
  */
 function seedTestData() {
   const ss = SpreadsheetApp.openById('1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g');
-  const respostasSheet = ss.getSheetByName('Respostas');
+  let respostasSheet = ss.getSheetByName('Respostas');
   if (!respostasSheet) {
-    createResponsesHeader(ss.insertSheet('Respostas'));
+    respostasSheet = ss.insertSheet('Respostas');
+    createResponsesHeader(respostasSheet);
   }
 
   // Adiciona 10 respostas de teste
