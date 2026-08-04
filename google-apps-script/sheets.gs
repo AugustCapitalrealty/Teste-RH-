@@ -142,7 +142,7 @@ function initializeSpreadsheet() {
  */
 function seedTestData() {
   const areas = [
-    'Planejamento & Gestão', 'Administrativo/Secretarias', 'Arquitetura',
+    'Planejamento & Gestão', 'Administrativo/Secretárias', 'Arquitetura',
     'Comercial/Marketing', 'Deminvest', 'Diretoria', 'Engenharia', 'Facilities',
     'Financeiro/Contábil', 'Jurídico', 'Propriedades', 'Recursos Humanos',
     'Tecnologia da Informação'

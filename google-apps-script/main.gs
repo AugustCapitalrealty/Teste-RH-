@@ -148,6 +148,7 @@ function getFormHTML() {
     .step-pct { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted-fg); }
 
     .progress-bar { width: 100%; height: 8px; background: var(--navy-20); border-radius: 999px; overflow: hidden; }
+    .survey-sticky .progress-bar { margin-bottom: 12px; }
     .progress-fill { height: 100%; background: var(--navy); border-radius: 999px; transition: width 0.3s; }
 
     .section-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
@@ -179,8 +180,10 @@ function getFormHTML() {
       color: #444;
       text-align: left;
     }
-    .info-box strong { display: block; margin-bottom: 8px; color: var(--navy); font-size: 13px; letter-spacing: 0.03em; }
+    .info-box-title { display: block; margin-bottom: 8px; color: var(--navy); font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
     .info-box ul { margin: 0; padding-left: 18px; line-height: 1.7; }
+    .info-box li { margin-bottom: 6px; }
+    .info-box li strong { color: var(--navy); }
 
     .anon-tip {
       background: #eafaf0;
@@ -288,6 +291,8 @@ function getFormHTML() {
     .na-btn.selected { background: var(--muted); color: var(--navy); border-color: rgba(101,115,134,.6); }
     .na-btn strong { font-weight: 700; }
     .na-btn .na-tail { opacity: 0.7; }
+    .na-btn:disabled { cursor: default; }
+    .locked-note { font-size: 11.5px; color: var(--muted-fg); font-style: italic; line-height: 1.4; padding: 2px 0 2px 0; }
 
     /* ==== FOCUS RINGS ==== */
     .emoji-btn:focus-visible, .na-btn:focus-visible, .chip:focus-visible, .btn:focus-visible {
@@ -386,7 +391,7 @@ function getFormHTML() {
       <div id="stageIntro" class="stage-intro">
         <h1>📊 Pesquisa RH 360º</h1>
         <div class="badges">
-          <span class="badge badge-green" title="Impossível associar respostas a pessoas. Resultados só aparecem por área com pelo menos 5 respostas.">🛡️ Pesquisa Anônima · k=5</span>
+          <span class="badge badge-green" title="Impossível associar respostas a pessoas. Os resultados são sempre analisados de forma agregada, nunca individual.">🛡️ Pesquisa Anônima</span>
           <span class="badge badge-blue">🏢 Capital Realty</span>
         </div>
 
@@ -394,12 +399,12 @@ function getFormHTML() {
         <p>Avalie todas as áreas com as quais você interage. Suas respostas são totalmente anônimas.</p>
 
         <div class="info-box">
-          <strong>⚙️ COMO FUNCIONA</strong>
+          <div class="info-box-title">⚙️ COMO FUNCIONA</div>
           <ul>
-            <li>Cada tela tem <strong>1 pergunta</strong>, respondida para <strong>todas as áreas</strong></li>
-            <li>Selecione a opção que melhor representa sua experiência 😞 😕 😐 🙂 😄 — ou <strong>N/A</strong> se você não tem interação com aquela área</li>
-            <li><strong>Autoavaliação:</strong> você também avalia a sua própria área, para comparar com a percepção das outras</li>
-            <li>São <strong>8 perguntas objetivas</strong> + <strong>2 comentários obrigatórios</strong></li>
+            <li>Cada tela tem <strong>1 pergunta</strong>, respondida para <strong>todas as áreas</strong>.</li>
+            <li>Selecione a opção que melhor representa sua experiência 😞 😕 😐 🙂 😄 — ou <strong>N/A</strong> se você não tem interação com aquela área.</li>
+            <li><strong>Autoavaliação:</strong> você também avalia a sua própria área, para comparar com a percepção das outras.</li>
+            <li>São <strong>8 perguntas objetivas</strong> + <strong>2 comentários obrigatórios</strong>.</li>
           </ul>
         </div>
 
@@ -427,13 +432,12 @@ function getFormHTML() {
             <span class="step-pct" id="stepPct"></span>
           </div>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="section-row">
+            <span class="section-label" id="sectionLabel"></span>
+            <span class="answered-count" id="answeredCount"></span>
+          </div>
+          <div class="question-text" id="questionText"></div>
         </div>
-
-        <div class="section-row">
-          <span class="section-label" id="sectionLabel"></span>
-          <span class="answered-count" id="answeredCount"></span>
-        </div>
-        <div class="question-text" id="questionText"></div>
 
         <div id="anonTipHolder" style="margin-top:14px;"></div>
         <div id="questionsContainer" style="margin-top:14px;"></div>
@@ -452,7 +456,7 @@ function getFormHTML() {
         <div class="big-emoji">🎉</div>
         <h2>Obrigado por participar!</h2>
         <p>Suas avaliações foram registradas de forma totalmente anônima. Nenhuma informação gravada permite associar essas respostas a você.</p>
-        <p style="margin-top: 16px; font-weight: 600; color: var(--navy);">Sua opinião ajuda a melhorar a colaboração entre as áreas. 💜</p>
+        <p style="margin-top: 16px; font-weight: 600; color: var(--navy);">Sua opinião ajuda a melhorar a colaboração entre as áreas. 💙</p>
       </div>
     </div>
   </div>
@@ -464,7 +468,7 @@ function getFormHTML() {
       <p class="modal-subtitle">Antes de começar, entenda como protegemos sua identidade nesta pesquisa.</p>
       <ul class="modal-list">
         <li><strong>Não gravamos quem você é</strong>Sua resposta não fica vinculada ao seu nome, e-mail ou área avaliadora.</li>
-        <li><strong>k = 5 — anonimato por grupo</strong>Resultados só aparecem para o RH quando uma área tem pelo menos 5 respostas.</li>
+        <li><strong>Anonimato por grupo</strong>Os resultados são sempre analisados de forma agregada por área — nunca de forma individual.</li>
         <li><strong>Comentários liberados só depois</strong>Os textos abertos ficam ocultos até o ciclo ser encerrado, embaralhados em ordem aleatória.</li>
       </ul>
       <div class="modal-actions">
@@ -488,7 +492,7 @@ function getFormHTML() {
   <script>
     const AREAS = [
       "Planejamento & Gestão",
-      "Administrativo/Secretarias",
+      "Administrativo/Secretárias",
       "Arquitetura",
       "Comercial/Marketing",
       "Deminvest",
@@ -576,10 +580,22 @@ function getFormHTML() {
       document.getElementById('stepPct').textContent = Math.round(progress) + '%';
     }
 
+    // A pessoa marcou "N/A" para essa área na 1ª pergunta (etapa 0)?
+    // A área própria (índice 0) nunca é "sem interação".
+    function isNoInteraction(areaIdx) {
+      return areaIdx !== 0 && answers['0_' + areaIdx] === 'na';
+    }
+
     function isAreaAnswered(stepIdx, areaIdx) {
       const q = QUESTIONS[stepIdx];
       const key = stepIdx + '_' + areaIdx;
-      if (q.type === 'rating') return !!answers[key];
+      if (q.type === 'rating') {
+        // Áreas marcadas como N/A na 1ª pergunta ficam travadas como N/A nas próximas
+        if (stepIdx !== 0 && isNoInteraction(areaIdx)) return true;
+        return !!answers[key];
+      }
+      // Comentário: obrigatório, exceto para áreas sem interação (opcional)
+      if (isNoInteraction(areaIdx)) return true;
       return ((answers[key] || '').trim().length >= MIN_CHARS);
     }
 
@@ -621,20 +637,37 @@ function getFormHTML() {
         orderedAreas.forEach((area, areaIdx) => {
           const isSelf = areaIdx === 0;
           const key = currentStep + '_' + areaIdx;
+
+          // Área travada: marcada como N/A na 1ª pergunta (não vale para a própria etapa 0 nem para a área própria)
+          const locked = currentStep !== 0 && isNoInteraction(areaIdx);
+          if (locked) answers[key] = 'na';
+
           const answered = !!answers[key];
+          const titleHtml = '<div class="area-row-title">' + (isSelf ? USERCHECK_SVG : '') + area
+            + (isSelf ? '<span class="self-badge">Sua área</span>' : '')
+            + (answered ? '<span class="check-ok">✓</span>' : '') + '</div>';
 
           const row = document.createElement('div');
           row.className = 'area-row' + (isSelf ? ' self' : '') + (answered ? ' answered' : '');
-          row.innerHTML = \`
-            <div class="area-row-title">\${isSelf ? USERCHECK_SVG : ''}\${area}\${isSelf ? '<span class="self-badge">Sua área</span>' : ''}\${answered ? '<span class="check-ok">✓</span>' : ''}</div>
+
+          if (locked) {
+            row.innerHTML = titleHtml
+              + '<div class="locked-note">Sem interação — marcada como <strong>N/A</strong> na 1ª pergunta. Para alterar, volte à 1ª pergunta.</div>';
+            wrapper.appendChild(row);
+            return;
+          }
+
+          // Botão N/A: só para áreas que NÃO são a sua própria (você sempre interage com a sua área)
+          const naHtml = isSelf ? '' :
+            '<button type="button" class="emoji-btn na-btn" data-value="na" data-key="' + key + '" aria-pressed="false" title="Sem interação com essa área"><strong>N/A</strong> <span class="na-tail">— não tenho interação com essa área</span></button>';
+
+          row.innerHTML = titleHtml + \`
             <div class="scale-labels"><span class="lo">😞 \${labels[0]}</span><span class="hi">\${labels[4]} 😄</span></div>
             <div class="rating-group" data-key="\${key}">
               \${EMOJIS.map((emoji, i) => \`
                 <button type="button" class="emoji-btn" data-value="\${i + 1}" data-nota="\${i + 1}" data-key="\${key}" aria-label="Nota \${i + 1} de 5 — \${labels[i]}" aria-pressed="false"><span class="em">\${emoji}</span><span class="num">\${i + 1}</span></button>
               \`).join('')}
-            </div>
-            <button type="button" class="emoji-btn na-btn" data-value="na" data-key="\${key}" aria-pressed="false" title="Sem interação com essa área"><strong>N/A</strong> <span class="na-tail">— não tenho interação com essa área</span></button>
-          \`;
+            </div>\` + naHtml;
           wrapper.appendChild(row);
         });
 
@@ -673,14 +706,18 @@ function getFormHTML() {
           const isSelf = areaIdx === 0;
           const key = currentStep + '_' + areaIdx;
           const currentVal = answers[key] || '';
+          const optional = isNoInteraction(areaIdx);
+
+          const counterHtml = optional
+            ? '<div class="char-counter" data-counter-for="' + key + '">Opcional — você marcou N/A nesta área</div>'
+            : '<div class="char-counter" data-counter-for="' + key + '">' + currentVal.trim().length + ' / ' + MIN_CHARS + ' mín.</div>';
 
           const row = document.createElement('div');
           row.className = 'area-row' + (isSelf ? ' self' : '');
           row.innerHTML = \`
             <div class="area-row-title">\${isSelf ? USERCHECK_SVG : ''}\${area}\${isSelf ? '<span class="self-badge">Sua área</span>' : ''}</div>
-            <textarea data-key="\${key}" placeholder="\${q.placeholder}">\${currentVal}</textarea>
-            <div class="char-counter" data-counter-for="\${key}">\${currentVal.trim().length} / \${MIN_CHARS} mín.</div>
-          \`;
+            <textarea data-key="\${key}" data-optional="\${optional ? '1' : '0'}" placeholder="\${optional ? 'Sem interação — comentário opcional' : q.placeholder}">\${currentVal}</textarea>
+          \` + counterHtml;
           wrapper.appendChild(row);
         });
 
@@ -688,10 +725,10 @@ function getFormHTML() {
 
         wrapper.querySelectorAll('textarea[data-key]').forEach(ta => {
           const key = ta.dataset.key;
-          updateCharCounter(key, ta.value);
+          if (ta.dataset.optional !== '1') updateCharCounter(key, ta.value);
           ta.addEventListener('input', () => {
             answers[key] = ta.value;
-            updateCharCounter(key, ta.value);
+            if (ta.dataset.optional !== '1') updateCharCounter(key, ta.value);
             updateAnsweredCount();
             updateNextButtonState();
             saveDraft();
