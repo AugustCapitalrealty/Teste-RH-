@@ -17,6 +17,40 @@ Versão da **Pesquisa RH 360º** (originalmente feita no Lovable/React+Supabase)
 
 ---
 
+## 🎯 Sequência de operação (resumo rápido)
+
+### A) Primeira vez — colocar no ar
+
+| # | O que fazer | Onde |
+|---|---|---|
+| 1 | Colar `main.gs` e `sheets.gs` nos dois arquivos, trocar `ID_PLANILHA` e **salvar** (Ctrl+S) | Editor |
+| 2 | Executar **`inicializarPlanilha()`** e autorizar o acesso | Menu *Executar* |
+| 3 | Executar **`inserirDadosDeTeste()`** — cria respostas fictícias | Menu *Executar* |
+| 4 | Executar **`gerarIndicadores()`** — gera as 4 abas de análise | Menu *Executar* |
+| 5 | Conferir as abas **PAINEL**, **POR_PERGUNTA**, **RESUMO_PERGUNTAS**, **COMENTARIOS** e validar o formato com a diretoria | Planilha |
+| 6 | ⚠️ Executar **`apagarDadosDeTeste()`** — **limpa tudo antes de valer** | Menu *Executar* |
+| 7 | *Implantar → Nova implantação → App da Web* (Executar como: **Eu**, Acesso: **Qualquer pessoa**) e copiar a URL | Editor |
+| 8 | Compartilhar a URL com os colaboradores | — |
+
+> 🚨 **Não pule o passo 6.** Se os dados de teste ficarem na planilha, eles se misturam com as respostas reais e contaminam todos os indicadores. Depois de limpar, rode `gerarIndicadores()` de novo se quiser confirmar que as abas voltaram a ficar vazias.
+
+### B) No dia a dia — durante a coleta
+
+Nada a fazer. As respostas caem sozinhas na aba `Respostas`.
+
+### C) Quando quiser ver os resultados
+
+Execute **`gerarIndicadores()`**. Só isso. Pode rodar quantas vezes quiser — ela sempre reconstrói as 4 abas do zero a partir das respostas atuais.
+
+### D) Quando mudar o código
+
+| Você mudou… | O que precisa fazer |
+|---|---|
+| Qualquer coisa do **formulário** (perguntas, áreas, textos, visual) | Salvar **e** criar nova versão: *Implantar → Gerenciar implantações → ✏️ → Nova versão*. Sem isso o público continua vendo a versão antiga. |
+| Só as **funções de análise** (`gerarIndicadores` e afins) | Basta salvar. Funções executadas pelo menu *Executar* sempre usam o código salvo, não o implantado. |
+
+---
+
 ## 🚀 Como colocar no ar (deploy)
 
 ### 1. Criar o projeto no Apps Script
