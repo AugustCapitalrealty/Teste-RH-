@@ -42,6 +42,8 @@ Nada a fazer. As respostas caem sozinhas na aba `Respostas`.
 
 Execute **`gerarIndicadores()`**. Só isso. Pode rodar quantas vezes quiser — ela sempre reconstrói as 4 abas do zero a partir das respostas atuais.
 
+> 💡 **Ou deixe no automático:** execute **`ativarAtualizacaoAutomatica()`** uma única vez e o Google passa a rodar `gerarIndicadores()` sozinho todo dia. Veja a seção *Automação* abaixo.
+
 ### D) Quando mudar o código
 
 | Você mudou… | O que precisa fazer |
@@ -106,6 +108,14 @@ Sempre que editar `main.gs`/`sheets.gs`: salve (**Ctrl+S**) → **Implantar** �
 | **`gerarIndicadores()`** ⭐ | **Sempre que quiser atualizar os resultados** | Reconstrói do zero as 4 abas de análise: **PAINEL**, **POR_PERGUNTA**, **RESUMO_PERGUNTAS** e **COMENTARIOS**. |
 | `inserirDadosDeTeste()` | Opcional, para testar | Cria 52 respondentes fictícios (4 por área) para você ver os indicadores funcionando. |
 | `apagarDadosDeTeste()` | Opcional, para limpar | Apaga **todas** as linhas da aba Respostas (mantém o cabeçalho). Use com cuidado. |
+
+**Funções de automação** (opcional — dispensam rodar `gerarIndicadores()` na mão):
+
+| Função | Quando rodar | O que faz |
+|---|---|---|
+| `ativarAtualizacaoAutomatica()` | **1x**, se quiser automatizar | Cria um acionador: o Google passa a rodar `gerarIndicadores()` sozinho, todo dia. |
+| `desativarAtualizacaoAutomatica()` | Quando quiser parar | Remove o acionador. |
+| `verificarAutomacao()` | Para conferir | Mostra no Log se está ligada e quando foi a última atualização. |
 
 **Funções internas** (chamadas automaticamente, terminam com `_` e não aparecem no menu):
 
@@ -203,6 +213,47 @@ Metadados chave/valor (`pesquisa_id`, `titulo_pesquisa`, `status`, `criado_em`).
 | **Sensibilidade da coluna Diferença** | `sheets.gs` → `const LIMITE_DESALINHAMENTO = 0.3` | Diferenças menores que isso são lidas como "percepção alinhada". |
 | **Textos, cores, logo** | `main.gs` → dentro de `getFormHTML()` | HTML/CSS inline. A paleta usa variáveis CSS (`--navy`, `--e1..e5`, etc.). |
 | **ID da planilha** | `sheets.gs` → `const ID_PLANILHA` | Um só lugar. |
+
+---
+
+## ⏰ Automação — atualizar os indicadores sozinho
+
+Se você não quiser rodar `gerarIndicadores()` manualmente toda vez:
+
+1. Execute **`ativarAtualizacaoAutomatica()`** (uma única vez).
+2. Autorize novamente quando o Google pedir — a automação usa uma permissão a mais (criar acionadores).
+3. Pronto. Todo dia, por volta das **6h**, os indicadores são recalculados sozinhos.
+
+Para conferir se está funcionando, execute **`verificarAutomacao()`** e olhe o Log — ele mostra se está ligada e a data da última atualização. Essa data também fica gravada na aba **CONFIG**, nas chaves `ultima_atualizacao` e `linhas_processadas`.
+
+Para desligar: **`desativarAtualizacaoAutomatica()`**.
+
+### Mudar o horário ou a frequência
+
+No `sheets.gs`, a hora fica na constante do topo da seção de automação:
+```js
+const HORA_ATUALIZACAO = 6;   // 0 a 23
+```
+
+Para mudar a frequência, edite a linha dentro de `ativarAtualizacaoAutomatica()`:
+```js
+.everyDays(1).atHour(HORA_ATUALIZACAO)   // padrão: todo dia
+.everyHours(4)                            // a cada 4 horas
+.everyHours(1)                            // de hora em hora
+```
+Depois **rode `ativarAtualizacaoAutomatica()` de novo** — ela substitui o acionador anterior em vez de criar um segundo.
+
+### Por que não atualizar a cada resposta enviada?
+
+Seria possível chamar `gerarIndicadores()` dentro de `submitForm()`, mas **não é recomendado**:
+
+- o respondente esperaria o recálculo de toda a planilha só para ver a tela de "Obrigado";
+- com duas pessoas enviando ao mesmo tempo, as duas execuções escreveriam nas mesmas abas simultaneamente, podendo corromper o resultado;
+- é desperdício: ninguém acompanha o painel em tempo real numa pesquisa de clima.
+
+Uma atualização diária (ou de poucas em poucas horas durante a semana de coleta) resolve o mesmo problema sem nenhum desses riscos.
+
+> ℹ️ O acionador roda **na sua conta**, com as suas permissões, mesmo com o navegador fechado. Se a execução falhar (ex.: planilha renomeada), o Google envia um e-mail de erro automaticamente.
 
 ---
 

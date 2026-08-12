@@ -12,6 +12,11 @@
  *   inserirDadosDeTeste()   → opcional, popula respostas fictícias para teste.
  *   apagarDadosDeTeste()    → opcional, limpa TUDO da aba Respostas.
  *
+ * AUTOMAÇÃO (opcional — dispensa rodar gerarIndicadores() na mão):
+ *   ativarAtualizacaoAutomatica()    → 1x. Passa a atualizar sozinho todo dia.
+ *   desativarAtualizacaoAutomatica() → desliga.
+ *   verificarAutomacao()             → mostra se está ligada e a última atualização.
+ *
  * As demais funções terminadas em "_" são internas (não aparecem no menu).
  */
 
@@ -208,8 +213,33 @@ function gerarIndicadores() {
   gerarAnalisePorPergunta_(resultado);
   gerarResumoPerguntas_(resultado);
   gerarComentarios_(registros, resultado);
+  registrarAtualizacao_(registros.length);
 
   Logger.log('Indicadores gerados a partir de ' + registros.length + ' linhas de resposta.');
+}
+
+/** Anota na aba CONFIG quando os indicadores foram atualizados pela última vez */
+function registrarAtualizacao_(totalLinhas) {
+  try {
+    const planilha = SpreadsheetApp.openById(ID_PLANILHA);
+    const config = planilha.getSheetByName(ABA_CONFIG);
+    if (!config) return;
+
+    const agora = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
+    const valores = { ultima_atualizacao: agora, linhas_processadas: totalLinhas };
+
+    const dados = config.getDataRange().getValues();
+    Object.keys(valores).forEach(function (chave) {
+      let linha = -1;
+      for (let i = 0; i < dados.length; i++) {
+        if (String(dados[i][0]).trim() === chave) { linha = i + 1; break; }
+      }
+      if (linha === -1) config.appendRow([chave, valores[chave]]);
+      else config.getRange(linha, 2).setValue(valores[chave]);
+    });
+  } catch (erro) {
+    Logger.log('Não foi possível registrar a data da atualização: ' + erro);
+  }
 }
 
 /** Lê a aba Respostas e devolve uma lista de registros normalizados */
@@ -556,6 +586,75 @@ function embaralhar_(lista) {
     const tmp = lista[i]; lista[i] = lista[j]; lista[j] = tmp;
   }
   return lista;
+}
+
+
+// ═══════════════════════ AUTOMAÇÃO (ACIONADORES) ═══════════════════════
+
+/**
+ * Hora do dia (0–23) em que os indicadores são atualizados automaticamente.
+ * O Google executa dentro de uma janela de ~1h em torno desse horário.
+ */
+const HORA_ATUALIZACAO = 6;
+
+/**
+ * EXECUTE UMA VEZ para ligar a atualização automática.
+ * A partir daí o Google roda gerarIndicadores() sozinho, todo dia, sem você
+ * precisar abrir o editor.
+ *
+ * Para mudar a frequência, troque a linha .everyDays(1).atHour(HORA_ATUALIZACAO) por:
+ *   .everyHours(1)    → de hora em hora
+ *   .everyHours(4)    → a cada 4 horas
+ *   .everyWeeks(1).onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8)  → toda segunda às 8h
+ * e rode esta função de novo (ela substitui o acionador anterior).
+ */
+function ativarAtualizacaoAutomatica() {
+  desativarAtualizacaoAutomatica(); // evita acionadores duplicados
+
+  ScriptApp.newTrigger('gerarIndicadores')
+    .timeBased()
+    .everyDays(1)
+    .atHour(HORA_ATUALIZACAO)
+    .create();
+
+  Logger.log('✅ Atualização automática ATIVADA: todo dia por volta das ' + HORA_ATUALIZACAO + 'h.');
+}
+
+/** EXECUTE para desligar a atualização automática. */
+function desativarAtualizacaoAutomatica() {
+  let removidos = 0;
+  ScriptApp.getProjectTriggers().forEach(function (acionador) {
+    if (acionador.getHandlerFunction() === 'gerarIndicadores') {
+      ScriptApp.deleteTrigger(acionador);
+      removidos++;
+    }
+  });
+  Logger.log(removidos > 0
+    ? '🛑 Atualização automática DESATIVADA (' + removidos + ' acionador(es) removido(s)).'
+    : 'Nenhuma atualização automática estava ativa.');
+}
+
+/** EXECUTE para conferir se a automação está ligada e quando rodou pela última vez. */
+function verificarAutomacao() {
+  const acionadores = ScriptApp.getProjectTriggers().filter(function (a) {
+    return a.getHandlerFunction() === 'gerarIndicadores';
+  });
+
+  if (acionadores.length === 0) {
+    Logger.log('⚪ Atualização automática DESLIGADA. Rode ativarAtualizacaoAutomatica() para ligar.');
+  } else {
+    Logger.log('🟢 Atualização automática LIGADA (' + acionadores.length + ' acionador).');
+  }
+
+  const planilha = SpreadsheetApp.openById(ID_PLANILHA);
+  const config = planilha.getSheetByName(ABA_CONFIG);
+  if (config) {
+    config.getDataRange().getValues().forEach(function (linha) {
+      if (String(linha[0]).trim() === 'ultima_atualizacao') {
+        Logger.log('Última atualização dos indicadores: ' + linha[1]);
+      }
+    });
+  }
 }
 
 
