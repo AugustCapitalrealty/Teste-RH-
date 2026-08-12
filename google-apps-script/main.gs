@@ -21,7 +21,7 @@ function doPost(e) {
       ).setMimeType(ContentService.MimeType.JSON);
     }
 
-    saveResponseToSheet(data);
+    salvarResposta(data);
 
     return ContentService.createTextOutput(
       JSON.stringify({ success: true, message: "Resposta salva com sucesso!" })
@@ -40,7 +40,7 @@ function doPost(e) {
  */
 function submitForm(data) {
   try {
-    saveResponseToSheet(data);
+    salvarResposta(data);
     return { success: true, message: "Resposta salva com sucesso!" };
   } catch (error) {
     Logger.log("Erro ao salvar resposta: " + error);
