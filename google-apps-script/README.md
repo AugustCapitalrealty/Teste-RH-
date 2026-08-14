@@ -178,7 +178,7 @@ Use os filtros do Sheets para isolar uma área ou um critério específico.
 
 ### 🏅 Aba `RESUMO_PERGUNTAS` — ranking dos temas na empresa
 
-Média da **empresa inteira** em cada uma das 8 perguntas, ordenada da melhor para a pior. Responde "em qual dimensão somos bons/ruins como companhia?".
+Média da **empresa inteira** em cada uma das 7 perguntas, ordenada da melhor para a pior. Responde "em qual dimensão somos bons/ruins como companhia?".
 
 `Pergunta | Seção | Respostas (n) | Nota média (empresa) | Posição`
 
@@ -282,7 +282,7 @@ As abas de análise já foram desenhadas pensando no painel — elas são **tabe
 |---|---|
 | Ranking de áreas / cartões com a nota | `PAINEL` |
 | Gráfico "autoavaliação × percepção externa" (barras lado a lado ou dispersão) | `PAINEL` |
-| Radar de uma área nos 8 critérios | `POR_PERGUNTA` (filtrando a área) |
+| Radar de uma área nos 7 critérios | `POR_PERGUNTA` (filtrando a área) |
 | Heatmap área × critério | `POR_PERGUNTA` |
 | Ranking dos temas na empresa | `RESUMO_PERGUNTAS` |
 | Lista/nuvem de comentários | `COMENTARIOS` |
@@ -325,7 +325,7 @@ As abas de análise já foram desenhadas pensando no painel — elas são **tabe
 
 1. **Intro** — modal de anonimato (1ª visita) → escolhe **sua área**.
 2. **Seleção de interação** — escolhe **com quais áreas teve interação** (avalia só essas + a autoavaliação da própria área).
-3. **8 perguntas objetivas** — escala de emoji 1–5 (Muito insatisfeito → Muito satisfeito), uma pergunta por tela respondida para todas as áreas selecionadas.
+3. **7 perguntas objetivas** — escala de emoji 1–5 (Muito insatisfeito → Muito satisfeito), uma pergunta por tela respondida para todas as áreas selecionadas.
 4. **2 comentários** — obrigatórios nas outras áreas, **opcionais na própria área**.
 5. **Confirmação** → **Envio** → tela de **Obrigado**.
 

@@ -63,7 +63,6 @@ const COR_CINZA = '#657386';
 const PERGUNTAS = [
   { nome: 'Clareza da comunicação',            secao: 'Comunicação',            tipo: 'rating' },
   { nome: 'Cordialidade',                      secao: 'Comunicação',            tipo: 'rating' },
-  { nome: 'Transparência da comunicação',      secao: 'Comunicação',            tipo: 'rating' },
   { nome: 'Velocidade de resposta',            secao: 'Agilidade (SLA)',        tipo: 'rating' },
   { nome: 'Cumprimento de prazos (SLA)',       secao: 'Agilidade (SLA)',        tipo: 'rating' },
   { nome: 'Qualidade das soluções entregues',  secao: 'Qualidade de entrega',   tipo: 'rating' },
@@ -209,6 +208,13 @@ function gerarIndicadores() {
 
   const resultado = agregarRespostas_(registros);
 
+  if (resultado.perguntasDesconhecidas.length > 0) {
+    Logger.log('⚠️ ATENÇÃO: a planilha tem respostas de perguntas que não estão mais no formulário — '
+      + 'elas foram IGNORADAS nos cálculos: ' + resultado.perguntasDesconhecidas.join(', ')
+      + '. Isso acontece quando a pesquisa muda no meio da coleta. Se for o caso, considere '
+      + 'arquivar as respostas antigas antes de continuar.');
+  }
+
   gerarPainel_(resultado);
   gerarAnalisePorPergunta_(resultado);
   gerarResumoPerguntas_(resultado);
@@ -284,6 +290,12 @@ function lerRespostas_() {
 function agregarRespostas_(registros) {
   const areas = {};
   const perguntas = {};
+  const desconhecidas = {}; // perguntas na planilha que não existem mais em PERGUNTAS
+
+  // Perguntas de nota atualmente válidas. Respostas de perguntas removidas do
+  // formulário são IGNORADAS, para não misturar versões diferentes da pesquisa.
+  const criteriosValidos = {};
+  CRITERIOS.forEach(function (nome) { criteriosValidos[nome] = true; });
 
   function novoAcumulador() {
     return { avaliadores: {}, soma: 0, qtd: 0 };
@@ -315,6 +327,9 @@ function agregarRespostas_(registros) {
     if (r.tipo !== 'rating') return;
     if (r.resposta === 'na' || r.resposta === '' || r.resposta === null) return;
 
+    // Pergunta que já não faz parte do formulário (versão antiga da pesquisa)
+    if (!criteriosValidos[r.pergunta]) { desconhecidas[r.pergunta] = true; return; }
+
     const nota = parseFloat(r.resposta);
     if (isNaN(nota)) return;
 
@@ -342,7 +357,11 @@ function agregarRespostas_(registros) {
     fechar(perguntas[p].externo); fechar(perguntas[p].auto);
   });
 
-  return { areas: areas, perguntas: perguntas };
+  return {
+    areas: areas,
+    perguntas: perguntas,
+    perguntasDesconhecidas: Object.keys(desconhecidas)
+  };
 }
 
 /**
@@ -690,18 +709,24 @@ function inserirDadosDeTeste() {
       const avaliacoes = selecionadas.map(function (area) {
         const ehAuto = area === suaArea;
         const notas = {};
-        for (let q = 0; q < 8; q++) {
-          const base = ehAuto ? 3 : 2; // autoavaliação um pouco mais generosa
-          notas['q' + q] = String(Math.min(5, base + Math.floor(Math.random() * 3)));
-        }
+        const comentarios = {};
+
+        // Os índices vêm da lista PERGUNTAS, então isto continua correto
+        // mesmo que perguntas sejam adicionadas ou removidas.
+        PERGUNTAS.forEach(function (pergunta, indice) {
+          if (pergunta.tipo === 'rating') {
+            const base = ehAuto ? 3 : 2; // autoavaliação um pouco mais generosa
+            notas['q' + indice] = String(Math.min(5, base + Math.floor(Math.random() * 3)));
+          } else {
+            comentarios['q' + indice] = 'Resposta de teste (' + pergunta.nome + ') para ' + area;
+          }
+        });
+
         return {
           area_avaliada: area,
           is_autoavaliacao: ehAuto,
           respostas: notas,
-          abertas: {
-            q8: 'Ponto forte de teste para ' + area,
-            q9: 'Sugestão de melhoria de teste para ' + area
-          }
+          abertas: comentarios
         };
       });
 

@@ -404,7 +404,7 @@ function getFormHTML() {
             <li>Cada tela tem <strong>1 pergunta</strong>, respondida para todas as áreas que você selecionou.</li>
             <li>Selecione a opção que melhor representa sua experiência 😞 😕 😐 🙂 😄.</li>
             <li><strong>Autoavaliação:</strong> você também avalia a sua própria área, para comparar com a percepção das outras.</li>
-            <li>São <strong>8 perguntas objetivas</strong> + <strong>2 comentários</strong> (opcionais na sua própria área).</li>
+            <li>São <strong>7 perguntas objetivas</strong> + <strong>2 comentários</strong> (opcionais na sua própria área).</li>
           </ul>
         </div>
 
@@ -526,7 +526,6 @@ function getFormHTML() {
     const QUESTIONS = [
       { type: "rating", secao: "Comunicação", texto: "Como você avalia a clareza da comunicação dessa área?", familia: "satisfacao" },
       { type: "rating", secao: "Comunicação", texto: "Como você avalia a cordialidade dessa área?", familia: "satisfacao" },
-      { type: "rating", secao: "Comunicação", texto: "Como você avalia a transparência da comunicação dessa área?", familia: "satisfacao" },
       { type: "rating", secao: "Agilidade (SLA)", texto: "Como você avalia a velocidade de resposta dessa área?", familia: "satisfacao" },
       { type: "rating", secao: "Agilidade (SLA)", texto: "Como você avalia o cumprimento dos prazos acordados por essa área?", familia: "satisfacao" },
       { type: "rating", secao: "Qualidade de entrega", texto: "Como você avalia a assertividade e a qualidade das soluções entregues por essa área?", familia: "satisfacao" },
