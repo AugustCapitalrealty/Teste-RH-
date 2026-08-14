@@ -264,7 +264,12 @@ Uma atualização diária (ou de poucas em poucas horas durante a semana de cole
 - Cada **área avaliada** recebe um **ID aleatório próprio** (não um ID único por pessoa). Assim não dá para juntar todas as respostas de um mesmo respondente cruzando um ID comum.
 - Nas abas de análise, áreas com poucas respostas ficam **ocultas**: `MINIMO_EXTERNO` (5) para a nota recebida e `MINIMO_AUTOAVALIACAO` (3) para a autoavaliação. A coluna **Status** sempre explica o motivo.
 - Os **comentários são embaralhados** e sem ID, para não permitir reconstruir o conjunto de respostas de uma pessoa.
-- **Bloqueio de duplicidade:** é apenas local (marca no `localStorage` do navegador). Evita reenvio acidental, mas **não** impede alguém decidido de responder de novo em outro navegador/aba anônima — isso exigiria login (fora do escopo desta versão).
+  O RH tem acesso a eles assim que `gerarIndicadores()` roda — **não** existe trava de "só depois do ciclo encerrar".
+  As telas do formulário dizem exatamente isso ao respondente; se um dia essa regra mudar, atualize também o texto do modal e da dica no `main.gs`.
+- **Bloqueio de duplicidade:** controlado pela constante `BLOQUEAR_REENVIO` no `main.gs`.
+  - `false` (padrão atual, **modo teste**): dá para responder quantas vezes quiser.
+  - `true`: marca no `localStorage` do navegador e impede responder de novo. Evita reenvio acidental, mas **não** impede alguém decidido de usar outro navegador/aba anônima — isso exigiria login (fora do escopo desta versão).
+  - ⚠️ **Lembre de mudar para `true` antes de divulgar o link para valer.**
 
 > ⚖️ **Sobre os mínimos:** são o que sustenta a promessa feita ao respondente na tela ("os resultados são analisados de forma agregada, nunca individual"). Se você baixar `MINIMO_AUTOAVALIACAO` para 1 ou 2 numa área pequena, a "média" passa a revelar a opinião de uma ou duas pessoas identificáveis. Prefira comunicar que faltam respostas a enfraquecer o corte.
 
@@ -315,7 +320,7 @@ As abas de análise já foram desenhadas pensando no painel — elas são **tabe
 | `salvarResposta is not defined` ao enviar o formulário | Você atualizou só um dos arquivos. **Cole os dois** (`main.gs` e `sheets.gs`) — o `main.gs` chama funções do `sheets.gs`. |
 | Tela em branco após enviar / logo cortada | Você colou uma versão antiga/incompleta. Cole o `main.gs` **completo** de novo. |
 | `Cannot read properties of null` ao rodar funções | ID da planilha errado no `sheets.gs`, ou a aba não existe. Confira `ID_PLANILHA` e rode `inicializarPlanilha()`. |
-| "Você já respondeu" aparecendo no teste | É o bloqueio local. Use aba anônima ou limpe o `localStorage`. |
+| "Você já respondeu" aparecendo no teste | É o bloqueio local. Confirme que `BLOQUEAR_REENVIO` está `false`, ou use aba anônima. |
 | Abas de análise vazias | Rode **`gerarIndicadores()`**. Se continuar vazio, confira se a aba `Respostas` tem dados. |
 | Colunas de nota em branco com "Oculto por anonimato" | Normal: a área ainda não atingiu o mínimo de respostas. A coluna **Status** diz exatamente o que falta. |
 

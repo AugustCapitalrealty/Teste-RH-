@@ -486,7 +486,7 @@ function getFormHTML() {
       <ul class="modal-list">
         <li><strong>Não gravamos quem você é</strong>Sua resposta não fica vinculada ao seu nome, e-mail ou área avaliadora.</li>
         <li><strong>Anonimato por grupo</strong>Os resultados são sempre analisados de forma agregada por área — nunca de forma individual.</li>
-        <li><strong>Comentários liberados só depois</strong>Os textos abertos ficam ocultos até o ciclo ser encerrado, embaralhados em ordem aleatória.</li>
+        <li><strong>Comentários desvinculados de você</strong>Os textos são lidos pelo RH em ordem embaralhada, sem nenhuma ligação com quem escreveu.</li>
       </ul>
       <div class="modal-actions">
         <button class="btn btn-confirm" onclick="closeAnonModal()">Entendi, começar</button>
@@ -538,10 +538,16 @@ function getFormHTML() {
     const EMOJIS = ["😞", "😕", "😐", "🙂", "😄"];
     const LABELS_SAT = ["Muito insatisfeito", "Insatisfeito", "Neutro", "Satisfeito", "Muito satisfeito"];
     const MIN_CHARS = 3;
+
+    // Impede responder duas vezes no MESMO navegador (evita reenvio acidental).
+    // Deixe false durante os testes, para poder responder quantas vezes quiser.
+    // Coloque true antes de divulgar o link para valer.
+    const BLOQUEAR_REENVIO = false;
+
     const STORAGE_SEEN_KEY = 'anon_intro_seen_pesquisa_360';
     const STORAGE_DONE_KEY = 'submitted_pesquisa_360';
     const STORAGE_DRAFT_KEY = 'draft_pesquisa_360_v3';
-    const ANON_TIP_HTML = '<div class="anon-tip">🛡️ <strong>Dica de anonimato:</strong> não inclua nomes, e-mails ou telefones. Os textos só serão lidos pelo RH depois do ciclo encerrar, em ordem aleatória.</div>';
+    const ANON_TIP_HTML = '<div class="anon-tip">🛡️ <strong>Dica de anonimato:</strong> não inclua nomes, e-mails ou telefones. Os textos são lidos pelo RH em ordem embaralhada, sem ligação com quem escreveu.</div>';
     const USERCHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151E49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>';
 
     let currentStep = 0;
@@ -853,7 +859,7 @@ function getFormHTML() {
       const data = { pesquisa_id: 'pesquisa_360', avaliacoes: avaliacoes, timestamp: new Date().toISOString() };
 
       google.script.run.withSuccessHandler(() => {
-        safeStorageSet(STORAGE_DONE_KEY, '1');
+        if (BLOQUEAR_REENVIO) safeStorageSet(STORAGE_DONE_KEY, '1');
         clearDraft();
         closeModal('confirmModal');
         document.getElementById('stageSurvey').classList.add('hidden');
@@ -903,10 +909,15 @@ function getFormHTML() {
 
     // ==== Inicialização ====
     (function init() {
-      if (safeStorageGet(STORAGE_DONE_KEY)) {
-        document.getElementById('stageIntro').classList.add('hidden');
-        document.getElementById('stageAlreadyDone').classList.remove('hidden');
-        return;
+      if (BLOQUEAR_REENVIO) {
+        if (safeStorageGet(STORAGE_DONE_KEY)) {
+          document.getElementById('stageIntro').classList.add('hidden');
+          document.getElementById('stageAlreadyDone').classList.remove('hidden');
+          return;
+        }
+      } else {
+        // Modo teste: apaga marca de envios anteriores para não travar depois
+        safeStorageRemove(STORAGE_DONE_KEY);
       }
       const draft = loadDraft();
       if (draft && draft.suaArea && AREAS.indexOf(draft.suaArea) !== -1 && Array.isArray(draft.interacted) && draft.interacted.length > 0) {
