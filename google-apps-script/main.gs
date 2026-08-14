@@ -413,7 +413,6 @@ function getFormHTML() {
       <!-- JÁ RESPONDEU (bloqueio local) -->
       <div id="stageAlreadyDone" class="already-done hidden">
         <h2>✅ Você já respondeu esta pesquisa</h2>
-        <p>Este navegador já registrou uma resposta para esta pesquisa. Se você acredita que isso é um engano, fale com o RH.</p>
       </div>
 
       <!-- INTRO -->
