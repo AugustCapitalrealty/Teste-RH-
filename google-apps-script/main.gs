@@ -84,6 +84,18 @@ function getFormHTML() {
       --e3: #F9B310;
       --e4: #73B82E;
       --e5: #24A85B;
+
+      /* Curva de animação natural (desaceleração suave, sem "salto") */
+      --suave: cubic-bezier(0.22, 1, 0.36, 1);
+
+      /* Sombras em camadas: uma rente à borda + uma difusa e ampla.
+         Dá profundidade sem a "faixa cinza" de uma sombra única. */
+      --sombra-1: 0 1px 2px rgba(21,30,73,0.04), 0 4px 16px rgba(21,30,73,0.05);
+      --sombra-2: 0 2px 6px rgba(21,30,73,0.05), 0 16px 40px rgba(21,30,73,0.10);
+      --sombra-alta: 0 8px 24px rgba(21,30,73,0.10), 0 32px 64px rgba(21,30,73,0.16);
+
+      /* Bordas quase invisíveis — separam sem "riscar" a tela */
+      --hairline: rgba(21,30,73,0.08);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -93,12 +105,20 @@ function getFormHTML() {
       background: var(--bg);
       min-height: 100vh;
       color: var(--navy);
+      /* Texto mais fino e nítido, como em telas Retina */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      /* Números de mesma largura: as notas não "dançam" ao trocar de tela */
+      font-variant-numeric: tabular-nums;
     }
 
     /* ==== TOP NAV ==== */
     .topnav {
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.86);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--hairline);
       padding: 12px 20px;
       position: sticky;
       top: 0;
@@ -117,10 +137,10 @@ function getFormHTML() {
       max-width: 1040px;
       margin: 0 auto;
       background: var(--card);
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-      padding: 24px;
+      border-radius: 20px;
+      border: 1px solid var(--hairline);
+      box-shadow: var(--sombra-1);
+      padding: 28px;
       position: relative;
     }
 
@@ -129,21 +149,21 @@ function getFormHTML() {
       position: sticky;
       top: 58px;
       z-index: 9;
-      background: rgba(255,255,255,0.92);
-      -webkit-backdrop-filter: blur(6px);
-      backdrop-filter: blur(6px);
-      margin: -24px -24px 16px;
-      padding: 14px 24px 12px;
-      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.82);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      backdrop-filter: saturate(180%) blur(20px);
+      margin: -28px -28px 20px;
+      padding: 18px 28px 14px;
+      border-bottom: 1px solid var(--hairline);
     }
 
     .step-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .step-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted-fg); text-transform: uppercase; }
     .step-pct { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted-fg); }
 
-    .progress-bar { width: 100%; height: 8px; background: var(--navy-20); border-radius: 999px; overflow: hidden; }
+    .progress-bar { width: 100%; height: 6px; background: rgba(21,30,73,0.10); border-radius: 999px; overflow: hidden; }
     .survey-sticky .progress-bar { margin-bottom: 12px; }
-    .progress-fill { height: 100%; background: var(--navy); border-radius: 999px; transition: width 0.3s; }
+    .progress-fill { height: 100%; background: var(--navy); border-radius: 999px; transition: width 0.6s var(--suave); }
 
     .section-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
     .section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted-fg); text-transform: uppercase; }
@@ -156,20 +176,20 @@ function getFormHTML() {
     }
     .answered-count.complete { background: #e8f7ee; color: #1e8a4c; font-weight: 700; }
 
-    .question-text { font-size: 18px; font-weight: 600; color: var(--navy); line-height: 1.375; }
+    .question-text { font-size: 19px; font-weight: 600; color: var(--navy); line-height: 1.35; letter-spacing: -0.018em; }
 
     /* ==== INTRO ==== */
-    h1 { color: var(--navy); text-align: center; margin-bottom: 10px; font-size: 24px; font-weight: 700; }
+    h1 { color: var(--navy); text-align: center; margin-bottom: 10px; font-size: 26px; font-weight: 700; letter-spacing: -0.022em; }
     .stage-intro { text-align: center; max-width: 640px; margin: 0 auto; }
-    .stage-intro h2 { font-size: 22px; color: var(--navy); margin-bottom: 8px; font-weight: 600; }
-    .stage-intro p { font-size: 14px; color: var(--muted-fg); line-height: 1.6; margin-bottom: 16px; }
+    .stage-intro h2 { font-size: 23px; color: var(--navy); margin-bottom: 10px; font-weight: 600; letter-spacing: -0.021em; }
+    .stage-intro p { font-size: 14.5px; color: var(--muted-fg); line-height: 1.65; margin-bottom: 18px; }
 
     .info-box {
-      background: #f0f2f8;
-      border-left: 4px solid var(--navy);
-      padding: 15px 15px 15px 30px;
-      margin: 20px 0;
-      border-radius: 8px;
+      background: rgba(21,30,73,0.035);
+      border-left: 3px solid var(--navy);
+      padding: 18px 18px 18px 26px;
+      margin: 22px 0;
+      border-radius: 14px;
       font-size: 13px;
       color: #444;
       text-align: left;
@@ -181,9 +201,9 @@ function getFormHTML() {
 
     .anon-tip {
       background: #eafaf0;
-      border: 1.5px solid #b7e6c9;
-      border-radius: 8px;
-      padding: 10px 14px;
+      border: 1px solid rgba(33,196,93,0.25);
+      border-radius: 14px;
+      padding: 12px 16px;
       margin-bottom: 14px;
       font-size: 12.5px;
       color: #1e6b3e;
@@ -202,7 +222,7 @@ function getFormHTML() {
     .badge-blue { background: var(--navy-10); color: var(--navy); }
 
     .info-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 20px 0; text-align: left; }
-    .info-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .info-card { background: var(--bg); border: 1px solid var(--hairline); border-radius: 14px; padding: 14px 16px; }
     .info-card .label { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--muted-fg); text-transform: uppercase; margin-bottom: 4px; }
     .info-card .value { font-size: 14px; font-weight: 600; color: var(--navy); }
 
@@ -211,20 +231,22 @@ function getFormHTML() {
 
     .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
     .chip {
-      padding: 8px 16px; border: 1.5px solid var(--border); border-radius: 999px;
+      padding: 9px 18px; border: 1.5px solid var(--border); border-radius: 999px;
       background: #fff; font-family: inherit; font-size: 13px; cursor: pointer;
-      transition: all 0.15s; color: #444;
+      transition: transform 0.25s var(--suave), border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+      color: #444;
     }
     .chip:hover { border-color: var(--navy); color: var(--navy); }
-    .chip.selected { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 600; }
+    .chip.selected { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 600; box-shadow: var(--sombra-1); }
+    .chip:active { transform: scale(0.97); transition-duration: 0.09s; }
 
     label { display: block; margin-bottom: 12px; font-weight: 600; color: var(--navy); font-size: 15px; }
 
     textarea {
       width: 100%; padding: 8px 12px;
-      border: 1px solid var(--border); border-radius: 10px;
-      font-family: inherit; font-size: 14px; resize: vertical; height: 64px;
-      transition: border-color 0.2s;
+      border: 1px solid var(--border); border-radius: 12px;
+      font-family: inherit; font-size: 14px; resize: vertical; height: 68px;
+      transition: border-color 0.2s ease, box-shadow 0.25s var(--suave);
     }
     textarea:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(6,92,169,.15); }
 
@@ -232,9 +254,9 @@ function getFormHTML() {
     .char-counter.ok { color: var(--success); }
 
     /* ==== QUESTION CARD ==== */
-    .question-card { border: 1px solid var(--border); border-radius: 16px; background: var(--card); overflow: hidden; }
+    .question-card { border: 1px solid var(--hairline); border-radius: 18px; background: var(--card); overflow: hidden; box-shadow: var(--sombra-1); }
 
-    .area-row { padding: 8px 12px; border-top: 1px solid var(--border); background: transparent; transition: background 0.15s; }
+    .area-row { padding: 12px 16px; border-top: 1px solid var(--hairline); background: transparent; transition: background 0.4s var(--suave); }
     .area-row:first-child { border-top: none; }
     .area-row.self { background: var(--navy-04); border-left: 4px solid var(--navy); }
     .area-row.answered { background: rgba(33,196,93,0.03); }
@@ -262,18 +284,18 @@ function getFormHTML() {
 
     .emoji-btn {
       display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4px;
-      padding: 4px; border: 2px solid var(--border); border-radius: 12px;
+      padding: 6px 4px; border: 1.5px solid var(--border); border-radius: 14px;
       background: #fff; font-family: inherit; color: var(--muted-fg);
-      cursor: pointer; transition: all 0.15s;
+      cursor: pointer; transition: transform 0.25s var(--suave), border-color 0.2s ease, background 0.2s ease, box-shadow 0.25s var(--suave);
     }
     .emoji-btn span.em { font-size: 18px; line-height: 1; filter: grayscale(40%); transition: filter 0.15s, transform 0.15s; }
     .emoji-btn span.num { font-size: 10px; font-weight: 700; color: var(--muted-fg); }
 
     .emoji-btn:hover { transform: scale(1.05); border-color: var(--navy-40); }
     .emoji-btn:hover span.em { filter: grayscale(0); transform: scale(1.1); }
-    .emoji-btn:active { transform: scale(0.95); }
+    .emoji-btn:active { transform: scale(0.94); transition-duration: 0.09s; }
 
-    .emoji-btn.selected { color: #fff; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1); }
+    .emoji-btn.selected { color: #fff; transform: scale(1.04); box-shadow: var(--sombra-2); border-color: transparent; }
     .emoji-btn.selected span.em { filter: none; animation: scale-in 0.2s ease-out; }
     .emoji-btn.selected span.num { color: rgba(255,255,255,.95); }
     .emoji-btn.selected[data-nota="1"] { background: var(--e1); border-color: var(--e1); }
@@ -284,7 +306,7 @@ function getFormHTML() {
 
     .na-btn {
       width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
-      padding: 4px 8px; border: 2px dashed var(--border); border-radius: 12px;
+      padding: 6px 10px; border: 1.5px dashed var(--border); border-radius: 14px;
       background: transparent; font-family: inherit; font-size: 11px; font-weight: 600;
       color: var(--muted-fg); cursor: pointer; transition: all 0.15s;
     }
@@ -303,20 +325,25 @@ function getFormHTML() {
 
     /* ==== NAVIGATION ==== */
     .navigation { display: flex; gap: 12px; margin-top: 24px; justify-content: space-between; }
-    .btn { padding: 12px 24px; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn {
+      padding: 13px 26px; border: none; border-radius: 14px; font-family: inherit;
+      font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; cursor: pointer;
+      transition: transform 0.25s var(--suave), background 0.2s ease, box-shadow 0.25s var(--suave), opacity 0.2s ease;
+    }
 
-    .btn-prev { background: transparent; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,.05); color: var(--navy); }
+    .btn-prev { background: transparent; border: 1px solid var(--border); box-shadow: var(--sombra-1); color: var(--navy); }
     .btn-prev:hover:not(:disabled) { background: var(--muted); }
 
     .btn-next, .btn-submit, .btn-confirm { background: var(--navy); color: #fff; flex: 1; }
-    .btn-next:hover:not(:disabled), .btn-submit:hover:not(:disabled), .btn-confirm:hover:not(:disabled) { background: #0e1533; transform: translateY(-1px); }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-next:hover:not(:disabled), .btn-submit:hover:not(:disabled), .btn-confirm:hover:not(:disabled) { background: #0e1533; transform: translateY(-1px); box-shadow: var(--sombra-2); }
+    .btn:active:not(:disabled) { transform: scale(0.98); transition-duration: 0.09s; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .footer-disclaimer { margin-top: 18px; font-size: 11px; color: var(--muted-fg); text-align: center; line-height: 1.5; }
 
     .success-message { text-align: center; padding: 40px; }
-    .success-message .big-emoji { font-size: 56px; margin-bottom: 12px; }
-    .success-message h2 { font-size: 26px; color: var(--navy); margin-bottom: 15px; font-weight: 700; }
+    .success-message .big-emoji { font-size: 60px; margin-bottom: 16px; animation: pop-in 0.6s var(--suave); }
+    .success-message h2 { font-size: 28px; color: var(--navy); margin-bottom: 16px; font-weight: 700; letter-spacing: -0.022em; }
     .success-message p { font-size: 15px; color: var(--muted-fg); line-height: 1.6; }
 
     .already-done { text-align: center; padding: 40px; }
@@ -325,16 +352,17 @@ function getFormHTML() {
 
     /* ==== MODALS ==== */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+      position: fixed; inset: 0; background: rgba(21,30,73,0.45);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
       display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50;
       animation: overlay-in 0.2s ease-out;
     }
     .modal-box {
-      background: #fff; border-radius: 12px; max-width: 512px; width: 100%; padding: 24px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
-      animation: modal-in 0.2s ease-out;
+      background: #fff; border-radius: 20px; max-width: 512px; width: 100%; padding: 28px;
+      box-shadow: var(--sombra-alta);
+      animation: modal-in 0.4s var(--suave);
     }
-    .modal-box h3 { font-size: 18px; color: var(--navy); margin-bottom: 6px; font-weight: 600; }
+    .modal-box h3 { font-size: 19px; color: var(--navy); margin-bottom: 8px; font-weight: 600; letter-spacing: -0.018em; }
     .modal-subtitle { font-size: 13px; color: var(--muted-fg); margin-bottom: 18px; line-height: 1.5; }
     .modal-list { list-style: none; margin-bottom: 20px; }
     .modal-list li { font-size: 13px; color: #444; line-height: 1.5; margin-bottom: 12px; padding-left: 22px; position: relative; }
@@ -342,10 +370,12 @@ function getFormHTML() {
     .modal-list li strong { color: var(--navy); display: block; }
     .modal-body-text { font-size: 13.5px; color: #555; line-height: 1.6; margin-bottom: 20px; }
     .modal-actions { display: flex; gap: 10px; }
+    .modal-box:focus { outline: none; }
 
+    @keyframes pop-in { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
     @keyframes scale-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
     @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes modal-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    @keyframes modal-in { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
     @media (prefers-reduced-motion: reduce) {
       .emoji-btn, .emoji-btn span.em, .btn, .modal-box, .modal-overlay, .progress-fill, .area-row {
@@ -383,7 +413,7 @@ function getFormHTML() {
       <!-- JÁ RESPONDEU (bloqueio local) -->
       <div id="stageAlreadyDone" class="already-done hidden">
         <h2>✅ Você já respondeu esta pesquisa</h2>
-        <p>Suas respostas já foram registradas anonimamente neste navegador. Cada colaborador participa apenas uma vez por ciclo.</p>
+        <p>Este navegador já registrou uma resposta para esta pesquisa. Se você acredita que isso é um engano, fale com o RH.</p>
       </div>
 
       <!-- INTRO -->
@@ -395,7 +425,7 @@ function getFormHTML() {
         </div>
 
         <h2>Pesquisa de Satisfação Interdepartamental</h2>
-        <p>Avalie todas as áreas com as quais você interage. Suas respostas são totalmente anônimas.</p>
+        <p>Avalie as áreas com as quais você interage. Suas respostas são anônimas — não pedimos nome nem e-mail.</p>
 
         <div class="info-box">
           <div class="info-box-title">⚙️ COMO FUNCIONA</div>
@@ -465,14 +495,14 @@ function getFormHTML() {
           <button class="btn btn-submit hidden" id="btnSubmit" onclick="openConfirmModal()">Enviar</button>
         </div>
 
-        <div class="footer-disclaimer">🔒 A área que você escolheu no início serve apenas para montar sua lista de avaliação — ela nunca é gravada junto às suas respostas, notas ou comentários.</div>
+        <div class="footer-disclaimer">🔒 Não coletamos seu nome nem seu e-mail. Sua área é registrada apenas para permitir a comparação entre a autoavaliação e a percepção das outras áreas.</div>
       </div>
 
       <!-- SUCCESS -->
       <div id="stageSuccess" class="success-message hidden">
         <div class="big-emoji">🎉</div>
         <h2>Obrigado por participar!</h2>
-        <p>Suas avaliações foram registradas de forma totalmente anônima. Nenhuma informação gravada permite associar essas respostas a você.</p>
+        <p>Suas avaliações foram registradas de forma anônima: não guardamos seu nome, seu e-mail nem o horário exato do envio.</p>
         <p style="margin-top: 16px; font-weight: 600; color: var(--navy);">Sua opinião ajuda a melhorar a colaboração entre as áreas. 💙</p>
       </div>
     </div>
@@ -480,11 +510,11 @@ function getFormHTML() {
 
   <!-- MODAL DE ANONIMATO (uma vez por navegador) -->
   <div id="anonModal" class="modal-overlay hidden">
-    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="anonModalTitle">
-      <h3 id="anonModalTitle">🔒 Sua resposta é 100% anônima</h3>
+    <div class="modal-box" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="anonModalTitle">
+      <h3 id="anonModalTitle">🔒 Sua resposta é anônima</h3>
       <p class="modal-subtitle">Antes de começar, entenda como protegemos sua identidade nesta pesquisa.</p>
       <ul class="modal-list">
-        <li><strong>Não gravamos quem você é</strong>Sua resposta não fica vinculada ao seu nome, e-mail ou área avaliadora.</li>
+        <li><strong>Não gravamos quem você é</strong>Não pedimos nome nem e-mail. Nada na sua resposta identifica você individualmente.</li>
         <li><strong>Anonimato por grupo</strong>Os resultados são sempre analisados de forma agregada por área — nunca de forma individual.</li>
         <li><strong>Comentários desvinculados de você</strong>Os textos são lidos pelo RH em ordem embaralhada, sem nenhuma ligação com quem escreveu.</li>
       </ul>
@@ -496,9 +526,9 @@ function getFormHTML() {
 
   <!-- MODAL DE CONFIRMAÇÃO DE ENVIO -->
   <div id="confirmModal" class="modal-overlay hidden">
-    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+    <div class="modal-box" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
       <h3 id="confirmModalTitle">🔒 Enviar respostas?</h3>
-      <p class="modal-body-text">Suas respostas serão gravadas anonimamente e não poderão ser alteradas depois. Após o envio sua identidade não é mais associada a nenhuma resposta.</p>
+      <p class="modal-body-text">Suas respostas serão gravadas anonimamente e não poderão ser alteradas depois. Não é possível identificar você a partir delas.</p>
       <div class="modal-actions">
         <button class="btn btn-prev" style="flex:1" onclick="closeConfirmModal()">Cancelar</button>
         <button class="btn btn-confirm" id="btnConfirmSubmit" onclick="confirmSubmit()">Confirmar envio 🔒</button>
@@ -884,8 +914,10 @@ function getFormHTML() {
       const m = document.getElementById(id);
       m.classList.remove('hidden');
       activeModal = m;
-      const focusables = m.querySelectorAll('button');
-      if (focusables.length) focusables[focusables.length - 1].focus();
+      // Foca a caixa (não um botão) para não desenhar anel de foco em quem abriu com o mouse.
+      // O leitor de tela ainda entra no modal e o Tab continua preso dentro dele.
+      const caixa = m.querySelector('.modal-box');
+      if (caixa) caixa.focus();
     }
     function closeModal(id) {
       document.getElementById(id).classList.add('hidden');

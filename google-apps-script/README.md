@@ -135,7 +135,7 @@ Sempre que editar `main.gs`/`sheets.gs`: salve (**Ctrl+S**) → **Implantar** �
 ### Aba `Respostas` — dados brutos (uma linha por área avaliada × pergunta)
 | Coluna | Exemplo | Observação |
 |---|---|---|
-| Timestamp | `2026-08-04T13:20:00Z` | Momento do envio. |
+| Data | `2026-08-12` | Apenas a data, **sem horário** — ver "Modelo de anonimato". |
 | Avaliação ID | `a1b2c3…` (UUID) | **Aleatório por área**, não por pessoa. Ver "Anonimato" abaixo. |
 | Área Avaliada | `Diretoria` | Área que está sendo avaliada. |
 | Autoavaliação | `Sim` / `Não` | `Sim` quando é a própria área do respondente. |
@@ -260,12 +260,20 @@ Uma atualização diária (ou de poucas em poucas horas durante a semana de cole
 ## 🔒 Modelo de anonimato (importante)
 
 - **Nenhuma identidade é coletada** — não há login, nome ou e-mail.
-- A área que a pessoa escolhe no início serve **só** para montar a lista de avaliação; **não é gravada** junto às respostas.
+- **A área do respondente É registrada** — a linha de autoavaliação (`Autoavaliação = Sim`) mostra de qual área a pessoa é.
+  Isso é inerente ao indicador de autoavaliação; sem isso não existe a comparação auto × externa.
+  Os textos do formulário dizem isso ao respondente: não prometemos que a área não é gravada, só que **nome e e-mail** não são coletados.
+- **Só a data é gravada, sem horário.** Se guardássemos a hora exata, todas as linhas de um envio teriam o mesmo carimbo de
+  milissegundos — bastaria ordenar por ele para agrupar tudo que uma pessoa respondeu e, pela linha de autoavaliação,
+  descobrir a área dela. Com a data, isso deixa de ser possível (desde que haja mais de um respondente no dia).
 - Cada **área avaliada** recebe um **ID aleatório próprio** (não um ID único por pessoa). Assim não dá para juntar todas as respostas de um mesmo respondente cruzando um ID comum.
 - Nas abas de análise, áreas com poucas respostas ficam **ocultas**: `MINIMO_EXTERNO` (5) para a nota recebida e `MINIMO_AUTOAVALIACAO` (3) para a autoavaliação. A coluna **Status** sempre explica o motivo.
 - Os **comentários são embaralhados** e sem ID, para não permitir reconstruir o conjunto de respostas de uma pessoa.
   O RH tem acesso a eles assim que `gerarIndicadores()` roda — **não** existe trava de "só depois do ciclo encerrar".
   As telas do formulário dizem exatamente isso ao respondente; se um dia essa regra mudar, atualize também o texto do modal e da dica no `main.gs`.
+- ⚠️ **Risco residual:** na aba `Respostas` crua, as linhas de um mesmo envio ficam **adjacentes** (foram inseridas juntas).
+  Isso não é eliminável por código. Por isso o RH deve trabalhar pelas abas de análise (que agregam e embaralham) e o acesso à
+  planilha bruta deve ser **restrito a quem realmente precisa**.
 - **Bloqueio de duplicidade:** controlado pela constante `BLOQUEAR_REENVIO` no `main.gs`.
   - `false` (padrão atual, **modo teste**): dá para responder quantas vezes quiser.
   - `true`: marca no `localStorage` do navegador e impede responder de novo. Evita reenvio acidental, mas **não** impede alguém decidido de usar outro navegador/aba anônima — isso exigiria login (fora do escopo desta versão).

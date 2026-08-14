@@ -102,7 +102,11 @@ function salvarResposta(dados) {
       criarCabecalhoRespostas_(aba);
     }
 
-    const dataHora = dados.timestamp || new Date().toISOString();
+    // Grava apenas a DATA, sem hora. Se guardássemos o horário exato, todas as
+    // linhas de um mesmo envio compartilhariam um carimbo único de milissegundos,
+    // permitindo agrupar tudo que uma pessoa respondeu — e, junto com a linha de
+    // autoavaliação, descobrir de qual área ela é. A data basta para a análise.
+    const dataResposta = formatarDataResposta_(dados.timestamp);
     const linhas = [];
 
     (dados.avaliacoes || []).forEach(function (avaliacao) {
@@ -114,7 +118,7 @@ function salvarResposta(dados) {
       for (const chave in notas) {
         const indice = parseInt(chave.replace('q', ''), 10);
         linhas.push([
-          dataHora, idAvaliacao, areaAvaliada, ehAuto ? 'Sim' : 'Não',
+          dataResposta, idAvaliacao, areaAvaliada, ehAuto ? 'Sim' : 'Não',
           nomeDaPergunta_(indice, chave), 'rating', notas[chave]
         ]);
       }
@@ -124,7 +128,7 @@ function salvarResposta(dados) {
         if (!comentarios[chave]) continue; // comentário vazio não é gravado
         const indice = parseInt(chave.replace('q', ''), 10);
         linhas.push([
-          dataHora, idAvaliacao, areaAvaliada, ehAuto ? 'Sim' : 'Não',
+          dataResposta, idAvaliacao, areaAvaliada, ehAuto ? 'Sim' : 'Não',
           nomeDaPergunta_(indice, chave), 'texto', comentarios[chave]
         ]);
       }
@@ -147,10 +151,17 @@ function nomeDaPergunta_(indice, chaveOriginal) {
   return (PERGUNTAS[indice] && PERGUNTAS[indice].nome) || chaveOriginal;
 }
 
+/** Devolve só a data (yyyy-MM-dd), descartando o horário — ver comentário em salvarResposta */
+function formatarDataResposta_(timestampIso) {
+  let data = timestampIso ? new Date(timestampIso) : new Date();
+  if (isNaN(data.getTime())) data = new Date(); // timestamp inválido → usa agora
+  return Utilities.formatDate(data, 'America/Sao_Paulo', 'yyyy-MM-dd');
+}
+
 /** Cria e formata o cabeçalho da aba Respostas */
 function criarCabecalhoRespostas_(aba) {
   const cabecalho = [
-    'Timestamp', 'Avaliação ID', 'Área Avaliada', 'Autoavaliação',
+    'Data', 'Avaliação ID', 'Área Avaliada', 'Autoavaliação',
     'Pergunta', 'Tipo', 'Resposta'
   ];
   aba.appendRow(cabecalho);
