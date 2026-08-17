@@ -302,7 +302,7 @@ Confira com **`verificarSenhaDoPainel()`** (mostra se está configurada, sem rev
 | **Nota de cada área** | Ranking das áreas pela nota recebida das outras, com seletor de ordenação (maior nota, menor nota, mais avaliações, alfabética) |
 | **Autoavaliação × percepção** | Onde a área se vê melhor (ou pior) do que a veem, ordenado pelo maior descompasso |
 | **Pontos fortes e fracos** | Ranking dos 7 critérios na empresa inteira |
-| **Detalhe por área** | Escolha 1 área e, se quiser, mais 2 para **comparar lado a lado** → nota em cada critério, com auto e diferença |
+| **Detalhe por área** | Escolha 1 área e, se quiser, mais 2 para **comparar lado a lado** → **gráfico de aranha** nos 7 critérios + tabela com auto e diferença |
 | **O que escreveram** | Termos mais citados (clicáveis), filtros por área e por pergunta, busca com destaque no texto, paginação de 50 em 50 e exportação em CSV |
 
 ### Participação — de onde sai o número
@@ -333,6 +333,22 @@ Duas ressalvas honestas sobre esse número:
 | 🟡 Regular | 2,9 a 3,6 |
 | 🟢 Bom | 3,6 a 4,3 |
 | 🟩 Ótimo | acima de 4,3 |
+
+### Gráfico de aranha (radar)
+
+Fica no bloco **Detalhe por área** e usa os mesmos seletores da tabela. Os 7 critérios são os eixos, sempre na ordem do formulário, e a escala é a mesma 0–5 das barras — a teia marca 1, 2, 3, 4 e a borda externa é o 5.
+
+Serve para as três comparações:
+
+| O que você quer ver | Como |
+|---|---|
+| **Uma área contra a empresa** | Escolha a área em *Área* e deixe *Comparar com a média da empresa* marcado (padrão). A linha cinza tracejada é a empresa. |
+| **Área contra área** | Preencha também *Comparar com* e *E com* — até 3 áreas sobrepostas, cada uma com sua cor. |
+| **Como a área se vê × como a veem** | Marque *Mostrar a autoavaliação da 1ª área*. O tracejado da mesma cor é a autoavaliação; quando ele fica **por fora** do sólido, a área se avalia melhor do que a avaliam. |
+
+Detalhes: passar o mouse sobre um ponto mostra o valor exato; com 3 ou mais camadas o preenchimento fica quase transparente para não virar borrão; uma série só é desenhada se tiver pelo menos 3 critérios com nota (área oculta por anonimato simplesmente não aparece).
+
+O gráfico é **SVG gerado no próprio código** — o Apps Script bloqueia bibliotecas externas (CSP), então não há Chart.js nem nada carregado de fora.
 
 ### Botões do painel
 

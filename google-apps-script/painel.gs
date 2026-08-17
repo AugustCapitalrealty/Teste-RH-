@@ -509,6 +509,16 @@ function getPainelHTML() {
     .btn-largo { width:100%; }
     .btn-pequeno { font-size:12.5px; padding:9px 15px; }
 
+    /* ── Gráfico de aranha ── */
+    .radar-caixa { display:flex; flex-direction:column; align-items:center; gap:6px; margin:6px 0 22px; }
+    .radar { width:100%; max-width:520px; height:auto; display:block; overflow:visible; }
+    .opcoes-radar { display:flex; flex-wrap:wrap; gap:10px 22px; margin:14px 0 4px; }
+    .marcador {
+      display:inline-flex; align-items:center; gap:8px; font-size:13px; color:#3C4763;
+      cursor:pointer; user-select:none;
+    }
+    .marcador input { width:15px; height:15px; accent-color:var(--navy); cursor:pointer; margin:0; }
+
     /* ── Termos mais citados ── */
     .termos { display:flex; flex-wrap:wrap; gap:8px; }
     .termo {
@@ -570,7 +580,7 @@ function getPainelHTML() {
     /* ── Impressão / PDF ── */
     @media print {
       body { background:#fff; }
-      .topo, .indice, .campos, .btn, .termos, .nao-imprime { display:none !important; }
+      .topo, .indice, .campos, .opcoes-radar, .btn, .termos, .nao-imprime { display:none !important; }
       .bloco { break-inside:avoid; page-break-inside:avoid; box-shadow:none; border:1px solid #ccc; margin-bottom:14px; }
       .preenche { transition:none !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       .comentario { break-inside:avoid; }
@@ -947,6 +957,116 @@ function getPainelHTML() {
     }
 
     // ── Detalhe / comparação entre áreas ──
+    // ── Gráfico de aranha (radar) ──
+    // SVG montado à mão: o Apps Script bloqueia bibliotecas externas (CSP).
+    const ROTULO_CURTO = {
+      'Clareza da comunicação': 'Clareza',
+      'Cordialidade': 'Cordialidade',
+      'Velocidade de resposta': 'Velocidade',
+      'Cumprimento de prazos (SLA)': 'Prazos',
+      'Qualidade das soluções entregues': 'Qualidade',
+      'Parceria estratégica': 'Parceria',
+      'Grau de esforço / simplicidade': 'Esforço'
+    };
+    const CORES_SERIE = ['#2C7BE5', '#9B51E0', '#E8833A'];
+
+    function curto(nome) {
+      return ROTULO_CURTO[nome] || String(nome).split(/[\s/]+/)[0];
+    }
+
+    /**
+     * series: [{ nome, cor, valores:[n|null], tracejado:bool }]
+     * eixos:  [nome do critério] — sempre na ordem do formulário
+     * Escala fixa 0–5, igual às barras do resto do painel.
+     */
+    function radar(eixos, series) {
+      const n = eixos.length;
+      if (n < 3) return '';
+      const cx = 260, cy = 215, R = 140, MAX = 5;
+
+      function ponto(i, valor) {
+        const ang = (Math.PI * 2 * i) / n - Math.PI / 2;
+        const r = (Math.max(0, Math.min(MAX, valor)) / MAX) * R;
+        return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)];
+      }
+      function anelPontos(valor) {
+        const p = [];
+        for (let i = 0; i < n; i++) { const q = ponto(i, valor); p.push(q[0].toFixed(1) + ',' + q[1].toFixed(1)); }
+        return p.join(' ');
+      }
+
+      // teia: anéis de 1 a 5
+      let teia = '';
+      for (let v = 1; v <= MAX; v++) {
+        teia += '<polygon points="' + anelPontos(v) + '" fill="none" stroke="rgba(21,30,73,' +
+                (v === MAX ? '.28' : '.12') + ')" stroke-width="1"/>';
+      }
+      // raios + rótulos
+      let raios = '', rotulos = '';
+      for (let i = 0; i < n; i++) {
+        const fim = ponto(i, MAX);
+        raios += '<line x1="' + cx + '" y1="' + cy + '" x2="' + fim[0].toFixed(1) + '" y2="' + fim[1].toFixed(1) +
+                 '" stroke="rgba(21,30,73,.14)" stroke-width="1"/>';
+        const rot = ponto(i, MAX + 0.62);
+        const dx = rot[0] - cx;
+        const anchor = Math.abs(dx) < 12 ? 'middle' : (dx > 0 ? 'start' : 'end');
+        rotulos += '<text x="' + rot[0].toFixed(1) + '" y="' + (rot[1] + 4).toFixed(1) + '" text-anchor="' + anchor +
+                   '" font-size="12.5" font-weight="600" fill="#151E49">' + esc(curto(eixos[i])) + '</text>';
+      }
+      // números da escala — desenhados por cima das séries, com halo branco
+      let marcas = '';
+      for (let v = 1; v < MAX; v++) {   // o 5 é a própria borda externa
+        const q = ponto(0, v);
+        marcas += '<text x="' + (cx + 6) + '" y="' + (q[1] + 3.5).toFixed(1) +
+                  '" font-size="9.5" fill="#8A94A6" paint-order="stroke" stroke="#fff" stroke-width="3" ' +
+                  'stroke-linejoin="round">' + v + '</text>';
+      }
+
+      // séries
+      let formas = '', legenda = '', descricao = [];
+      const desenhaveis = series.filter(function (s) {
+        let q = 0;
+        for (let i = 0; i < n; i++) if (s.valores[i] !== null && s.valores[i] !== undefined) q++;
+        return q >= 3;
+      }).length;
+      // Com 3+ camadas as manchas se somam e viram borrão: aí vale só o contorno.
+      const opacidade = desenhaveis > 2 ? '.05' : '.14';
+
+      series.forEach(function (s) {
+        const validos = [];
+        for (let i = 0; i < n; i++) if (s.valores[i] !== null && s.valores[i] !== undefined) validos.push(i);
+        if (validos.length < 3) return;   // polígono não fecha — melhor não desenhar
+
+        const pts = validos.map(function (i) {
+          const q = ponto(i, s.valores[i]);
+          return q[0].toFixed(1) + ',' + q[1].toFixed(1);
+        }).join(' ');
+
+        formas += '<polygon points="' + pts + '" fill="' + s.cor + '" fill-opacity="' + (s.tracejado ? '.04' : opacidade) +
+                  '" stroke="' + s.cor + '" stroke-width="2.2" stroke-linejoin="round"' +
+                  (s.tracejado ? ' stroke-dasharray="5 4"' : '') + '/>';
+        validos.forEach(function (i) {
+          const q = ponto(i, s.valores[i]);
+          formas += '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="3.2" fill="' + s.cor +
+                    '"><title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(s.valores[i])) + '</title></circle>';
+        });
+
+        legenda += '<span class="legenda-item"><span class="bolinha" style="background:' + s.cor +
+                   (s.tracejado ? ';opacity:.55' : '') + '"></span>' + esc(s.nome) + '</span>';
+        descricao.push(s.nome + ': ' + validos.map(function (i) {
+          return curto(eixos[i]) + ' ' + num(s.valores[i]);
+        }).join(', '));
+      });
+
+      if (!formas) return '<div class="aviso">Sem dados suficientes para desenhar o gráfico.</div>';
+
+      return '<div class="radar-caixa">' +
+        '<svg viewBox="0 38 520 350" class="radar" role="img" aria-label="' +
+        esc('Gráfico de aranha, escala 0 a 5. ' + descricao.join('. ')) + '">' +
+        teia + raios + formas + marcas + rotulos + '</svg>' +
+        '<div class="legenda" style="margin-top:4px">' + legenda + '</div></div>';
+    }
+
     function blocoDetalhe() {
       const opcoes = dados.areas.map(function (a) { return '<option value="' + esc(a.nome) + '">' + esc(a.nome) + '</option>'; }).join('');
       return '<section class="bloco" id="s-detalhe"><h2>Detalhe por área</h2>' +
@@ -955,7 +1075,13 @@ function getPainelHTML() {
         '<div><label class="rotulo-campo" for="areaA">Área</label><select id="areaA">' + opcoes + '</select></div>' +
         '<div><label class="rotulo-campo" for="areaB">Comparar com</label><select id="areaB"><option value="">— nenhuma —</option>' + opcoes + '</select></div>' +
         '<div><label class="rotulo-campo" for="areaC">E com</label><select id="areaC"><option value="">— nenhuma —</option>' + opcoes + '</select></div>' +
-        '</div><div id="detalheArea" style="overflow-x:auto"></div></section>';
+        '</div>' +
+        '<div class="opcoes-radar">' +
+        '<label class="marcador"><input type="checkbox" id="radarEmpresa" checked> Comparar com a média da empresa</label>' +
+        '<label class="marcador"><input type="checkbox" id="radarAuto"> Mostrar a autoavaliação da 1ª área</label>' +
+        '</div>' +
+        '<div id="radarArea"></div>' +
+        '<div id="detalheArea" style="overflow-x:auto"></div></section>';
     }
     function desenharDetalhe() {
       const escolhidas = ['areaA','areaB','areaC']
@@ -991,6 +1117,45 @@ function getPainelHTML() {
       document.getElementById('detalheArea').innerHTML =
         '<table><caption>Notas dadas pelas outras áreas, por critério (escala 0 a 5).</caption>' +
         '<thead>' + cabecalho + '</thead><tbody>' + corpo + '</tbody></table>';
+
+      desenharRadar(escolhidas, criterios);
+    }
+
+    function desenharRadar(escolhidas, criterios) {
+      const eixos = criterios.map(function (c) { return c.nome; });
+      const series = [];
+
+      function valores(area, campo) {
+        return eixos.map(function (nome) {
+          const d = (dados.detalhe[area] || []).filter(function (x) { return x.pergunta === nome; })[0];
+          return d ? d[campo] : null;
+        });
+      }
+
+      escolhidas.forEach(function (area, i) {
+        series.push({ nome: area, cor: CORES_SERIE[i % CORES_SERIE.length], valores: valores(area, 'externa') });
+      });
+
+      if (document.getElementById('radarAuto').checked && escolhidas.length) {
+        series.push({
+          nome: escolhidas[0] + ' (autoavaliação)',
+          cor: CORES_SERIE[0], tracejado: true,
+          valores: valores(escolhidas[0], 'auto')
+        });
+      }
+
+      if (document.getElementById('radarEmpresa').checked) {
+        const porNome = {};
+        dados.criterios.forEach(function (c) { porNome[c.nome] = c.media; });
+        series.push({
+          nome: 'Média da empresa', cor: '#657386', tracejado: true,
+          valores: eixos.map(function (nome) {
+            return porNome[nome] === undefined ? null : porNome[nome];
+          })
+        });
+      }
+
+      document.getElementById('radarArea').innerHTML = radar(eixos, series);
     }
 
     // ── Comentários ──
@@ -1143,7 +1308,7 @@ function getPainelHTML() {
       document.getElementById('ordemAreas').addEventListener('change', desenharRanking);
       desenharRanking();
 
-      ['areaA','areaB','areaC'].forEach(function (id) {
+      ['areaA','areaB','areaC','radarEmpresa','radarAuto'].forEach(function (id) {
         document.getElementById(id).addEventListener('change', desenharDetalhe);
       });
       desenharDetalhe();
