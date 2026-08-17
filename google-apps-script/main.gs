@@ -2,6 +2,12 @@
  * Entry point - Render a página inicial do formulário
  */
 function doGet(e) {
+  // Mesma URL serve as duas telas:
+  //   ...?page=painel  → painel do RH (protegido por senha, ver painel.gs)
+  //   sem parâmetro    → formulário público
+  const pagina = (e && e.parameter && e.parameter.page) || '';
+  if (pagina === 'painel') return servirPainel_();
+
   const html = HtmlService.createHtmlOutput(getFormHTML());
   html.setWidth(1000);
   html.setHeight(800);

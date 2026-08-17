@@ -11,6 +11,7 @@ Versão da **Pesquisa RH 360º** (originalmente feita no Lovable/React+Supabase)
 | `appsscript.json` | Manifesto do projeto (fuso horário, escopos OAuth, runtime V8). |
 | `main.gs` | **Frontend + roteamento.** Todo o HTML/CSS/JS do formulário está dentro da função `getFormHTML()`. Também contém `doGet`, `doPost` e `submitForm`. |
 | `sheets.gs` | **Backend de dados.** Grava respostas na planilha e calcula estatísticas. |
+| `painel.gs` | **Painel do RH.** Dashboard de resultados, na mesma URL + `?page=painel`. Protegido por senha. |
 | `README.md` | Este arquivo. |
 
 > ⚠️ O `main.gs` é grande (~100 KB) porque a **logo da Capital Realty está embutida em base64** dentro do HTML. Isso é necessário: o Apps Script bloqueia imagens externas (CSP). É normal.
@@ -23,7 +24,7 @@ Versão da **Pesquisa RH 360º** (originalmente feita no Lovable/React+Supabase)
 
 | # | O que fazer | Onde |
 |---|---|---|
-| 1 | Colar `main.gs` e `sheets.gs` nos dois arquivos, trocar `ID_PLANILHA` e **salvar** (Ctrl+S) | Editor |
+| 1 | Colar `main.gs`, `sheets.gs` e `painel.gs` nos três arquivos, trocar `ID_PLANILHA` e **salvar** (Ctrl+S) | Editor |
 | 2 | Executar **`inicializarPlanilha()`** e autorizar o acesso | Menu *Executar* |
 | 3 | Executar **`inserirDadosDeTeste()`** — cria respostas fictícias | Menu *Executar* |
 | 4 | Executar **`gerarIndicadores()`** — gera as 4 abas de análise | Menu *Executar* |
@@ -31,6 +32,7 @@ Versão da **Pesquisa RH 360º** (originalmente feita no Lovable/React+Supabase)
 | 6 | ⚠️ Executar **`apagarDadosDeTeste()`** — **limpa tudo antes de valer** | Menu *Executar* |
 | 7 | *Implantar → Nova implantação → App da Web* (Executar como: **Eu**, Acesso: **Qualquer pessoa**) e copiar a URL | Editor |
 | 8 | Compartilhar a URL com os colaboradores | — |
+| 9 | *(opcional)* Rodar **`configurarSenhaDoPainel()`** para liberar o painel do RH em `?page=painel` | Menu *Executar* |
 
 > 🚨 **Não pule o passo 6.** Se os dados de teste ficarem na planilha, eles se misturam com as respostas reais e contaminam todos os indicadores. Depois de limpar, rode `gerarIndicadores()` de novo se quiser confirmar que as abas voltaram a ficar vazias.
 
@@ -57,9 +59,9 @@ Execute **`gerarIndicadores()`**. Só isso. Pode rodar quantas vezes quiser — 
 
 ### 1. Criar o projeto no Apps Script
 1. Acesse https://script.google.com/ → **Novo projeto**.
-2. Crie dois arquivos de script: **`main`** e **`sheets`** (ícone **+** → *Script*).
-3. Cole o conteúdo de `main.gs` no arquivo `main` e o de `sheets.gs` no arquivo `sheets`.
-   - ❗ **Cole sempre os dois arquivos juntos** ao atualizar — o `main.gs` chama funções que moram no `sheets.gs`.
+2. Crie três arquivos de script: **`main`**, **`sheets`** e **`painel`** (ícone **+** → *Script*).
+3. Cole cada arquivo do repositório no arquivo de mesmo nome.
+   - ❗ **Cole sempre os três arquivos juntos** ao atualizar — eles chamam funções uns dos outros.
    - ❗ **Não** deixe o conteúdo repetido em dois arquivos. Cada `const` no topo (ex.: `PERGUNTAS`) só pode existir **uma vez** no projeto inteiro, senão dá erro `Identifier 'X' has already been declared`.
 4. (Opcional) Substitua o conteúdo de `appsscript.json` — clique em ⚙️ *Configurações do projeto* → marque *Mostrar o arquivo de manifesto `appsscript.json`*.
 
@@ -84,7 +86,7 @@ Execute **`gerarIndicadores()`**. Só isso. Pode rodar quantas vezes quiser — 
 3. **Implantar** → copie a **URL do app da Web** → compartilhe com os colaboradores.
 
 ### 5. Atualizar depois de mudar o código
-Sempre que editar `main.gs`/`sheets.gs`: salve (**Ctrl+S**) → **Implantar** → **Gerenciar implantações** → ✏️ (editar) → **Nova versão** → **Implantar**. A URL continua a mesma.
+Sempre que editar qualquer `.gs`: salve (**Ctrl+S**) → **Implantar** → **Gerenciar implantações** → ✏️ (editar) → **Nova versão** → **Implantar**. A URL continua a mesma.
 
 ---
 
@@ -93,7 +95,7 @@ Sempre que editar `main.gs`/`sheets.gs`: salve (**Ctrl+S**) → **Implantar** �
 ### `main.gs`
 | Função | Quando roda | O que faz |
 |---|---|---|
-| `doGet(e)` | Automático, quando alguém abre a URL | Renderiza o formulário (retorna `getFormHTML()`). |
+| `doGet(e)` | Automático, quando alguém abre a URL | Roteia: com `?page=painel` abre o painel do RH; sem parâmetro, o formulário. |
 | `doPost(e)` | Automático, em requisições HTTP POST | Handler alternativo de POST (o formulário **não** usa isto — usa `google.script.run`). Deixado para integrações externas. |
 | `submitForm(data)` | Chamada pelo formulário via `google.script.run` ao enviar | Recebe as avaliações e chama `salvarResposta` (no `sheets.gs`). |
 | `getFormHTML()` | Chamada por `doGet` | Devolve **todo** o HTML/CSS/JS do formulário (é aqui que você mexe em textos, cores, perguntas, áreas). |
@@ -125,6 +127,15 @@ Sempre que editar `main.gs`/`sheets.gs`: salve (**Ctrl+S**) → **Implantar** �
 | `lerRespostas_()` | Lê a aba Respostas e normaliza os dados. |
 | `agregarRespostas_(registros)` | **Núcleo do cálculo**: separa percepção externa × autoavaliação, por área e por pergunta. |
 | `gerarPainel_`, `gerarAnalisePorPergunta_`, `gerarResumoPerguntas_`, `gerarComentarios_` | Escrevem cada aba de análise. |
+
+### `painel.gs`
+
+| Função | Quando rodar | O que faz |
+|---|---|---|
+| `configurarSenhaDoPainel()` | **1x**, para liberar o painel | Define a senha de acesso (guardada fora do código). |
+| `verificarSenhaDoPainel()` | Para conferir | Diz se a senha já foi configurada, sem revelá-la. |
+| `obterDadosPainel(senha)` | Chamada pelo painel | Devolve todos os indicadores em JSON — **só com a senha correta**. |
+| `regerarAbasDaPlanilha(senha)` | Botão do painel | Roda `gerarIndicadores()`, também protegido por senha. |
 
 > 🔁 **Rotina de operação:** deixe a pesquisa coletando respostas → quando quiser ver os números, rode **`gerarIndicadores()`** e abra as abas de análise. Pode rodar quantas vezes quiser; ela sempre reconstrói tudo a partir da aba Respostas.
 
@@ -257,6 +268,50 @@ Uma atualização diária (ou de poucas em poucas horas durante a semana de cole
 
 ---
 
+## 📈 Painel do RH (dashboard)
+
+Mesma URL do formulário, com `?page=painel` no final:
+
+```
+https://script.google.com/macros/s/SEU_ID/exec?page=painel
+```
+
+### Configurar a senha (uma vez)
+
+O painel é **protegido por senha**, porque a URL é pública. A senha **não fica no código** — é guardada nas Propriedades do Script, então não vai para o repositório.
+
+1. Abra `painel.gs` → função **`configurarSenhaDoPainel()`**
+2. Escreva a senha na linha `const NOVA_SENHA = '';`
+3. **Execute** a função
+4. **Apague a senha da linha** e salve de novo
+
+Confira com **`verificarSenhaDoPainel()`** (mostra se está configurada, sem revelar a senha).
+
+> Enquanto não houver senha configurada, o painel fica **inacessível** — o padrão é seguro.
+
+### O que o painel mostra
+
+| Bloco | O que responde |
+|---|---|
+| **Cartões no topo** | Total de avaliações, nota média da empresa, quantas áreas já têm dados, maior desalinhamento |
+| **Nota de cada área** | Ranking das áreas pela nota recebida das outras |
+| **Autoavaliação × percepção** | Onde a área se vê melhor (ou pior) do que a veem, ordenado pelo maior descompasso |
+| **Pontos fortes e fracos** | Ranking dos 7 critérios na empresa inteira |
+| **Detalhe por área** | Seletor de área → nota em cada critério, com auto e diferença |
+| **O que escreveram** | Comentários com filtro por área e busca no texto |
+
+Os dados são lidos **direto da aba `Respostas`**, sempre atualizados — não é preciso rodar `gerarIndicadores()` antes. O botão *"Atualizar abas da planilha"* serve para regenerar as abas de análise (útil para Looker Studio ou exportação).
+
+Todos os cortes de anonimato valem aqui igual: áreas abaixo do mínimo aparecem sem nota, e os comentários vêm embaralhados e sem identificação.
+
+### ⚠️ Limites desta proteção
+
+- **Quem tiver o link e a senha entra.** Não há registro de quem acessou.
+- Como o formulário é público (sem login), o Google não informa quem está acessando — por isso não dá para liberar por e-mail nesta mesma URL.
+- Trate a senha como confidencial e troque-a se alguém sair do time. Para trocar: rode `configurarSenhaDoPainel()` de novo com a senha nova.
+
+---
+
 ## 🔒 Modelo de anonimato (importante)
 
 - **Nenhuma identidade é coletada** — não há login, nome ou e-mail.
@@ -325,7 +380,7 @@ As abas de análise já foram desenhadas pensando no painel — elas são **tabe
 | Erro | Causa / solução |
 |---|---|
 | `Identifier 'X' has already been declared` | Código duplicado em dois arquivos `.gs`. Deixe cada função/const só em um arquivo. |
-| `salvarResposta is not defined` ao enviar o formulário | Você atualizou só um dos arquivos. **Cole os dois** (`main.gs` e `sheets.gs`) — o `main.gs` chama funções do `sheets.gs`. |
+| `salvarResposta is not defined` / `servirPainel_ is not defined` | Você atualizou só um dos arquivos. **Cole os três** (`main.gs`, `sheets.gs`, `painel.gs`) — eles se chamam entre si. |
 | Tela em branco após enviar / logo cortada | Você colou uma versão antiga/incompleta. Cole o `main.gs` **completo** de novo. |
 | `Cannot read properties of null` ao rodar funções | ID da planilha errado no `sheets.gs`, ou a aba não existe. Confira `ID_PLANILHA` e rode `inicializarPlanilha()`. |
 | "Você já respondeu" aparecendo no teste | É o bloqueio local. Confirme que `BLOQUEAR_REENVIO` está `false`, ou use aba anônima. |
