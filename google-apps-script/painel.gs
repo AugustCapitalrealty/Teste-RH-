@@ -163,25 +163,39 @@ function obterDadosPainel(senha) {
   embaralhar_(comentarios);
 
   // ── Totais ──
-  let totalAvaliacoes = 0, somaGeral = 0, qtdGeral = 0;
+  // Participação: todo envio traz exatamente UM bloco de autoavaliação (a própria
+  // área do respondente é sempre a primeira do formulário). Então o nº de blocos
+  // de autoavaliação = nº de pessoas que enviaram a pesquisa.
+  let totalAvaliacoes = 0, respondentes = 0, somaGeral = 0, qtdGeral = 0;
   Object.keys(resultado.areas).forEach(function (nome) {
     const a = resultado.areas[nome];
     totalAvaliacoes += a.externo.avaliadores + a.auto.avaliadores;
+    respondentes += a.auto.avaliadores;
     somaGeral += a.externo.soma; qtdGeral += a.externo.qtd;
   });
 
   const notaGeral = qtdGeral > 0 ? arredondar_(somaGeral / qtdGeral) : null;
+  const participacao = {
+    respondentes: respondentes,
+    total: TOTAL_COLABORADORES,
+    percentual: TOTAL_COLABORADORES > 0
+      ? Math.round((respondentes / TOTAL_COLABORADORES) * 100) : null,
+    faltam: Math.max(0, TOTAL_COLABORADORES - respondentes),
+    porArea: areas.map(function (a) { return { nome: a.nome, respondentes: a.nAuto }; })
+                  .sort(function (x, y) { return y.respondentes - x.respondentes; })
+  };
 
   return {
     vazio: false,
     atualizadoEm: Utilities.formatDate(new Date(), 'America/Sao_Paulo', "dd/MM/yyyy 'às' HH:mm"),
     totalAvaliacoes: totalAvaliacoes,
+    participacao: participacao,
     notaGeral: notaGeral,
     areas: areas,
     criterios: criterios,
     detalhe: detalhe,
     comentarios: comentarios,
-    destaques: montarDestaques_(areas, criterios, notaGeral),
+    destaques: montarDestaques_(areas, criterios, notaGeral, participacao),
     automacao: estadoDaAutomacao_(),
     minimoExterno: MINIMO_EXTERNO,
     minimoAuto: MINIMO_AUTOAVALIACAO,
@@ -193,9 +207,21 @@ function obterDadosPainel(senha) {
  * Leituras automáticas dos dados — o que o RH veria se lesse o painel inteiro.
  * São observações factuais (contagens e comparações), não interpretações.
  */
-function montarDestaques_(areas, criterios, notaGeral) {
+function montarDestaques_(areas, criterios, notaGeral, participacao) {
   const destaques = [];
   const comNota = areas.filter(function (a) { return a.notaExterna !== null; });
+
+  // Participação vem primeiro: sem gente respondendo, nenhum outro número vale.
+  if (participacao && participacao.total > 0) {
+    const p = participacao;
+    destaques.push({
+      tipo: p.percentual >= 80 ? 'bom' : p.percentual >= 50 ? 'atencao' : 'alerta',
+      texto: p.faltam === 0
+        ? '<strong>' + p.respondentes + ' de ' + p.total + ' colaboradores</strong> responderam — a meta foi atingida.'
+        : '<strong>' + p.respondentes + ' de ' + p.total + ' colaboradores</strong> responderam (' +
+          p.percentual + '%). Faltam <strong>' + p.faltam + '</strong>.'
+    });
+  }
 
   const fracas = comNota.filter(function (a) { return a.notaExterna < 3; })
                         .sort(function (x, y) { return x.notaExterna - y.notaExterna; });
@@ -394,11 +420,17 @@ function getPainelHTML() {
     .d-alerta  { background:rgba(230,51,81,.07);  border:1px solid rgba(230,51,81,.20); }
     .d-atencao { background:rgba(249,179,16,.09); border:1px solid rgba(249,179,16,.28); }
     .d-info    { background:rgba(21,30,73,.035);  border:1px solid var(--hairline); }
+    .d-bom     { background:rgba(22,140,74,.07);  border:1px solid rgba(22,140,74,.22); }
 
     /* ── KPIs ── */
-    .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:14px; margin-bottom:20px; }
+    .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
     .kpi { background:var(--card); border:1px solid var(--hairline); border-radius:18px; padding:20px; box-shadow:var(--sombra-1); }
     .kpi-topo { display:flex; align-items:center; gap:7px; margin-bottom:9px; }
+    /* Barra do cartão de participação: 0–100%, não 0–5 — por isso sem as marcas. */
+    .kpi .trilho-fino { height:7px; margin:9px 0 7px; }
+    .kpi .trilho-fino::before { display:none; }
+    /* Barra de contagem de pessoas: não é escala 0–5, então sem as marcas. */
+    .trilho-liso::before { display:none; }
     .kpi .ic { font-size:14px; }
     .kpi .rotulo { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-fg); }
     .kpi .valor { font-size:31px; font-weight:700; letter-spacing:-.03em; line-height:1.1; }
@@ -585,6 +617,7 @@ function getPainelHTML() {
     <nav class="indice" id="indice" aria-label="Seções do painel">
       <div class="indice-inner">
         <a href="#s-visao">Visão geral</a>
+        <a href="#s-participacao">Participação</a>
         <a href="#s-areas">Notas por área</a>
         <a href="#s-auto">Autoavaliação</a>
         <a href="#s-criterios">Pontos fortes e fracos</a>
@@ -703,7 +736,7 @@ function getPainelHTML() {
       if (dados.automacao && dados.automacao.ligada) atualiz += ' · abas atualizam sozinhas todo dia';
       document.getElementById('atualizadoEm').textContent = atualiz;
 
-      alvo.innerHTML = blocoAviso() + blocoVisaoGeral() + blocoRanking() + blocoComparacao() +
+      alvo.innerHTML = blocoAviso() + blocoVisaoGeral() + blocoParticipacao() + blocoRanking() + blocoComparacao() +
                        blocoCriterios() + blocoDetalhe() + blocoComentarios();
       ligarInteracoes();
 
@@ -723,7 +756,7 @@ function getPainelHTML() {
     // ── Visão geral: destaques + KPIs ──
     function blocoVisaoGeral() {
       const destaques = (dados.destaques || []).map(function (d) {
-        const ic = d.tipo === 'alerta' ? '🔴' : (d.tipo === 'atencao' ? '🟡' : 'ℹ️');
+        const ic = d.tipo === 'alerta' ? '🔴' : d.tipo === 'atencao' ? '🟡' : d.tipo === 'bom' ? '🟢' : 'ℹ️';
         return '<div class="destaque d-' + d.tipo + '"><span class="ic" aria-hidden="true">' + ic + '</span><div>' + d.texto + '</div></div>';
       }).join('');
 
@@ -736,9 +769,12 @@ function getPainelHTML() {
         if (!maior || Math.abs(a.diferenca) > Math.abs(maior.diferenca)) maior = a;
       });
 
+      const p = dados.participacao;
       const kpis = '<div class="kpis">' +
+        kpiParticipacao(p) +
         kpi('👥', 'Avaliações recebidas', dados.totalAvaliacoes, 'somando todas as áreas',
-            'Cada avaliação é uma pessoa avaliando uma área. Quem avalia 5 áreas gera 5 avaliações.') +
+            'Cada avaliação é uma pessoa avaliando uma área. Quem avalia 5 áreas gera 5 avaliações — ' +
+            'por isso este número é bem maior que o de pessoas.') +
         kpi('📊', 'Nota média da empresa', num(dados.notaGeral), 'percepção entre áreas, de 0 a 5',
             'Média de todas as notas que as áreas deram umas às outras. Não inclui autoavaliações.') +
         kpi('🔓', 'Áreas com dados', liberadas + '<span style="font-size:19px;color:#657386">/' + total + '</span>',
@@ -757,11 +793,60 @@ function getPainelHTML() {
         '<div class="bloco-sub">Leitura automática dos dados — o que salta aos olhos sem precisar percorrer o painel inteiro.</div>' +
         (destaques ? '<div class="destaques">' + destaques + '</div>' : '') + kpis + '</section>';
     }
+    function kpiParticipacao(p) {
+      if (!p || !p.total) return '';
+      const cor = p.percentual >= 80 ? '#168C4A' : p.percentual >= 50 ? '#F9B310' : '#E63351';
+      const largura = Math.min(100, p.percentual);
+      const ajuda = 'Quantas pessoas enviaram a pesquisa, de ' + p.total + ' colaboradores. ' +
+        'Contado pelos blocos de autoavaliação: cada envio tem exatamente um.';
+      return '<div class="kpi"><div class="kpi-topo"><span class="ic" aria-hidden="true">🙋</span>' +
+        '<span class="rotulo">Participação</span>' +
+        '<span class="ajuda" title="' + esc(ajuda) + '" role="img" aria-label="' + esc(ajuda) + '">?</span></div>' +
+        '<div class="valor">' + p.respondentes +
+        '<span style="font-size:19px;color:#657386">/' + p.total + '</span></div>' +
+        '<div class="trilho trilho-fino" role="img" aria-label="' + p.percentual + '% de participação">' +
+        '<div class="preenche" style="background:' + cor + '" data-largura="' + largura + '"></div></div>' +
+        '<div class="nota">' + p.percentual + '% — ' +
+        (p.faltam === 0 ? 'meta atingida' : 'faltam ' + p.faltam) + '</div></div>';
+    }
+
     function kpi(icone, rotulo, valor, nota, ajuda) {
       return '<div class="kpi"><div class="kpi-topo"><span class="ic" aria-hidden="true">' + icone + '</span>' +
         '<span class="rotulo">' + rotulo + '</span>' +
         '<span class="ajuda" title="' + esc(ajuda) + '" role="img" aria-label="' + esc(ajuda) + '">?</span></div>' +
         '<div class="valor">' + valor + '</div><div class="nota">' + nota + '</div></div>';
+    }
+
+    // ── Participação por área ──
+    function blocoParticipacao() {
+      const p = dados.participacao;
+      if (!p || !p.total) return '';
+
+      const maxArea = p.porArea.reduce(function (m, a) { return Math.max(m, a.respondentes); }, 0);
+      const linhas = p.porArea.map(function (a) {
+        const larg = maxArea > 0 ? (a.respondentes / maxArea) * 100 : 0;
+        return '<div class="linha-barra"><div class="rotulo-area">' + esc(a.nome) + '</div>' +
+          '<div class="trilho trilho-liso" role="img" aria-label="' + a.respondentes + ' pessoas">' +
+          '<div class="preenche" style="background:#2C7BE5" data-largura="' + larg + '"></div></div>' +
+          '<div class="numero" style="color:#151E49">' + a.respondentes + '</div></div>';
+      }).join('');
+
+      const escalaNota = 'Barra proporcional à área que mais respondeu (' + maxArea + ') — ' +
+        'serve para comparar áreas entre si, não é percentual concluído.';
+
+      return '<section class="bloco" id="s-participacao"><h2>Participação</h2>' +
+        '<div class="bloco-sub">Quantas pessoas de cada área já enviaram a pesquisa. ' +
+        'Total esperado: <strong>' + p.total + ' colaboradores</strong> — ajuste em ' +
+        '<code>TOTAL_COLABORADORES</code> no <code>sheets.gs</code> se o quadro mudar.</div>' +
+        '<div class="bloco-sub" style="margin-bottom:12px">' + escalaNota + '</div>' +
+        '<div class="grafico">' + linhas + '</div>' +
+        '<div class="aviso" style="margin-top:16px">' +
+        '<strong>Como este número é contado:</strong> cada envio da pesquisa contém exatamente uma ' +
+        'autoavaliação (a própria área do respondente), então contamos essas autoavaliações. ' +
+        'Não há identificação de quem respondeu — só quantos, e de qual área. ' +
+        'É contagem de <em>envios</em>: como a trava de reenvio é por navegador, quem responder ' +
+        'duas vezes conta duas vezes. Se o total passar de ' + p.total + ', é isso.' +
+        '</div></section>';
     }
 
     // ── Legenda + eixo ──

@@ -38,6 +38,13 @@ const ID_PLANILHA = '1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g';
 const MINIMO_EXTERNO = 5;
 const MINIMO_AUTOAVALIACAO = 3;
 
+/**
+ * PARTICIPAÇÃO — quantas pessoas a empresa tem hoje.
+ * Serve de denominador para o indicador "X de 55 responderam".
+ * Atualize quando o quadro mudar; nenhum cálculo de nota depende disto.
+ */
+const TOTAL_COLABORADORES = 55;
+
 /** Diferença (auto − externo) a partir da qual consideramos que há desalinhamento */
 const LIMITE_DESALINHAMENTO = 0.3;
 

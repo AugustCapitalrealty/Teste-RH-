@@ -225,6 +225,7 @@ Metadados chave/valor (`pesquisa_id`, `titulo_pesquisa`, `status`, `criado_em`).
 | **Mínimo de avaliações externas** | `sheets.gs` → `const MINIMO_EXTERNO = 5` | Abaixo disso a nota da área fica oculta. |
 | **Mínimo de autoavaliações** | `sheets.gs` → `const MINIMO_AUTOAVALIACAO = 3` | Abaixo disso a autoavaliação fica oculta. |
 | **Sensibilidade da coluna Diferença** | `sheets.gs` → `const LIMITE_DESALINHAMENTO = 0.3` | Diferenças menores que isso são lidas como "percepção alinhada". |
+| **Total de colaboradores** | `sheets.gs` → `const TOTAL_COLABORADORES = 55` | Só o denominador do indicador de participação no painel. Nenhuma nota depende disso. |
 | **Textos, cores, logo** | `main.gs` → dentro de `getFormHTML()` | HTML/CSS inline. A paleta usa variáveis CSS (`--navy`, `--e1..e5`, etc.). |
 | **ID da planilha** | `sheets.gs` → `const ID_PLANILHA` | Um só lugar. |
 
@@ -296,12 +297,32 @@ Confira com **`verificarSenhaDoPainel()`** (mostra se está configurada, sem rev
 
 | Bloco | O que responde |
 |---|---|
-| **Visão geral** | Leituras automáticas (áreas abaixo de 3,00, maior desalinhamento, critério mais forte/fraco, áreas ocultas) + 4 cartões: total de avaliações, nota média da empresa, áreas com dados, maior desalinhamento |
+| **Visão geral** | Participação (X de 55) + leituras automáticas (áreas abaixo de 3,00, maior desalinhamento, critério mais forte/fraco, áreas ocultas) + 4 cartões: total de avaliações, nota média da empresa, áreas com dados, maior desalinhamento |
+| **Participação** | Quantas pessoas já responderam, no total e por área |
 | **Nota de cada área** | Ranking das áreas pela nota recebida das outras, com seletor de ordenação (maior nota, menor nota, mais avaliações, alfabética) |
 | **Autoavaliação × percepção** | Onde a área se vê melhor (ou pior) do que a veem, ordenado pelo maior descompasso |
 | **Pontos fortes e fracos** | Ranking dos 7 critérios na empresa inteira |
 | **Detalhe por área** | Escolha 1 área e, se quiser, mais 2 para **comparar lado a lado** → nota em cada critério, com auto e diferença |
 | **O que escreveram** | Termos mais citados (clicáveis), filtros por área e por pergunta, busca com destaque no texto, paginação de 50 em 50 e exportação em CSV |
+
+### Participação — de onde sai o número
+
+O painel mostra **quantas pessoas enviaram a pesquisa**, contra o total esperado de colaboradores.
+
+O denominador fica numa constante no `sheets.gs`:
+
+```js
+const TOTAL_COLABORADORES = 55;
+```
+
+Mude o número aí quando o quadro da empresa mudar. **Nenhum cálculo de nota depende disso** — é só o denominador do painel.
+
+**Como as pessoas são contadas.** Cada envio da pesquisa contém exatamente **uma** autoavaliação, porque a própria área do respondente é sempre a primeira do formulário. O painel conta esses blocos de autoavaliação. Não existe identificador de pessoa na planilha (é justamente o que garante o anonimato) — sabemos *quantos* responderam e *de qual área*, nunca *quem*.
+
+Duas ressalvas honestas sobre esse número:
+
+- É contagem de **envios**, não de pessoas distintas. A trava de reenvio é por navegador, então quem responder duas vezes conta duas vezes — e o total pode passar de 55.
+- Na barra **por área**, o comprimento é proporcional à área que mais respondeu, não a um percentual concluído: serve para comparar áreas entre si. Não temos o número de pessoas de cada área, só o total da empresa.
 
 **Como ler os gráficos.** Todas as barras usam a **mesma escala fixa de 0 a 5**, com linhas de grade e o eixo numerado embaixo — barras de blocos diferentes são diretamente comparáveis. A legenda no topo do ranking explica as cores:
 
