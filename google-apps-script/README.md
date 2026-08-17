@@ -136,6 +136,9 @@ Sempre que editar qualquer `.gs`: salve (**Ctrl+S**) → **Implantar** → **Ger
 | `verificarSenhaDoPainel()` | Para conferir | Diz se a senha já foi configurada, sem revelá-la. |
 | `obterDadosPainel(senha)` | Chamada pelo painel | Devolve todos os indicadores em JSON — **só com a senha correta**. |
 | `regerarAbasDaPlanilha(senha)` | Botão do painel | Roda `gerarIndicadores()`, também protegido por senha. |
+| `exportarComentarios(senha, area)` | Botão *Exportar CSV* do painel | Gera o CSV dos comentários (do filtro de área ativo) **no seu Google Drive** e devolve o link. Também protegido por senha. |
+
+> 🔐 **Toda** função do painel confere a senha **no servidor**, não só na tela. Como a URL é pública, alguém poderia chamar `google.script.run` direto pelo console do navegador — a validação server-side é o que impede isso.
 
 > 🔁 **Rotina de operação:** deixe a pesquisa coletando respostas → quando quiser ver os números, rode **`gerarIndicadores()`** e abra as abas de análise. Pode rodar quantas vezes quiser; ela sempre reconstrói tudo a partir da aba Respostas.
 
@@ -293,16 +296,42 @@ Confira com **`verificarSenhaDoPainel()`** (mostra se está configurada, sem rev
 
 | Bloco | O que responde |
 |---|---|
-| **Cartões no topo** | Total de avaliações, nota média da empresa, quantas áreas já têm dados, maior desalinhamento |
-| **Nota de cada área** | Ranking das áreas pela nota recebida das outras |
+| **Visão geral** | Leituras automáticas (áreas abaixo de 3,00, maior desalinhamento, critério mais forte/fraco, áreas ocultas) + 4 cartões: total de avaliações, nota média da empresa, áreas com dados, maior desalinhamento |
+| **Nota de cada área** | Ranking das áreas pela nota recebida das outras, com seletor de ordenação (maior nota, menor nota, mais avaliações, alfabética) |
 | **Autoavaliação × percepção** | Onde a área se vê melhor (ou pior) do que a veem, ordenado pelo maior descompasso |
 | **Pontos fortes e fracos** | Ranking dos 7 critérios na empresa inteira |
-| **Detalhe por área** | Seletor de área → nota em cada critério, com auto e diferença |
-| **O que escreveram** | Comentários com filtro por área e busca no texto |
+| **Detalhe por área** | Escolha 1 área e, se quiser, mais 2 para **comparar lado a lado** → nota em cada critério, com auto e diferença |
+| **O que escreveram** | Termos mais citados (clicáveis), filtros por área e por pergunta, busca com destaque no texto, paginação de 50 em 50 e exportação em CSV |
 
-Os dados são lidos **direto da aba `Respostas`**, sempre atualizados — não é preciso rodar `gerarIndicadores()` antes. O botão *"Atualizar abas da planilha"* serve para regenerar as abas de análise (útil para Looker Studio ou exportação).
+**Como ler os gráficos.** Todas as barras usam a **mesma escala fixa de 0 a 5**, com linhas de grade e o eixo numerado embaixo — barras de blocos diferentes são diretamente comparáveis. A legenda no topo do ranking explica as cores:
+
+| Cor | Faixa |
+|---|---|
+| 🔴 Crítico | abaixo de 2,2 |
+| 🟠 Ruim | 2,2 a 2,9 |
+| 🟡 Regular | 2,9 a 3,6 |
+| 🟢 Bom | 3,6 a 4,3 |
+| 🟩 Ótimo | acima de 4,3 |
+
+### Botões do painel
+
+| Botão | O que faz |
+|---|---|
+| **Imprimir / PDF** | Abre a impressão do navegador já formatada (menus, filtros e botões somem; os blocos não quebram no meio). Escolha *"Salvar como PDF"* no destino. |
+| **Regravar abas da planilha** | Roda `gerarIndicadores()` — regenera as abas de análise. Útil para Looker Studio ou para exportar. Não é necessário para o painel funcionar. |
+| **Buscar dados novos** | Relê a planilha sem recarregar a página. |
+| **Exportar CSV** (no bloco de comentários) | Gera um `.csv` com os comentários **do filtro de área ativo** e salva **no seu Google Drive** (o Apps Script não permite download direto). O painel devolve o link do arquivo. O CSV usa `;` e vem com BOM, então o Excel abre com os acentos certos. |
+
+**Termos mais citados:** contagem simples de palavras, cada palavra contada **uma vez por comentário**. Palavras sem valor analítico (artigos, verbos genéricos) e os **nomes das áreas** ficam de fora — a área já aparece no crachá de cada comentário. Clicar num termo joga a palavra na busca. Não é análise de sentimento: é frequência, e serve para achar assunto, não para medir humor.
+
+Os dados são lidos **direto da aba `Respostas`**, sempre atualizados — não é preciso rodar `gerarIndicadores()` antes.
 
 Todos os cortes de anonimato valem aqui igual: áreas abaixo do mínimo aparecem sem nota, e os comentários vêm embaralhados e sem identificação.
+
+### O que o painel **não** faz (de propósito)
+
+- **Análise de sentimento automática.** Classificar texto em português como positivo/negativo sem um modelo treinado erra muito — principalmente com ironia e negação ("não é ruim"). Um rótulo errado num comentário sobre uma pessoa vira decisão errada de RH. Os textos são lidos, não pontuados.
+- **Comparação com ciclos anteriores.** Ainda não existe histórico: só há um ciclo. Quando houver o segundo, dá para arquivar a aba `Respostas` do primeiro e comparar.
 
 ### ⚠️ Limites desta proteção
 
@@ -340,38 +369,26 @@ Para **testar do zero**, use uma **aba anônima** (Ctrl+Shift+N) ou limpe o `loc
 
 ---
 
-## 🧭 Preparando para o futuro Painel (Dashboard RH)
+## 🧭 Levando os dados para fora (Looker Studio / BI)
 
-As abas de análise já foram desenhadas pensando no painel — elas são **tabelas limpas** (uma linha de cabeçalho + dados, sem blocos intercalados) e as notas são gravadas como **números de verdade**, não texto. Isso significa que qualquer ferramenta de BI consegue consumir direto, sem tratamento.
+O painel do RH já cobre o uso do dia a dia. Se em algum momento for preciso montar relatórios fora do Apps Script, as abas de análise já foram desenhadas para isso — são **tabelas limpas** (uma linha de cabeçalho + dados, sem blocos intercalados) e as notas são gravadas como **números de verdade**, não texto. Qualquer ferramenta de BI consome direto, sem tratamento.
 
-### Qual aba usar para cada visualização
-
-| Visualização do painel | Aba fonte |
+| Visualização | Aba fonte |
 |---|---|
 | Ranking de áreas / cartões com a nota | `PAINEL` |
-| Gráfico "autoavaliação × percepção externa" (barras lado a lado ou dispersão) | `PAINEL` |
+| Gráfico "autoavaliação × percepção externa" | `PAINEL` |
 | Radar de uma área nos 7 critérios | `POR_PERGUNTA` (filtrando a área) |
 | Heatmap área × critério | `POR_PERGUNTA` |
 | Ranking dos temas na empresa | `RESUMO_PERGUNTAS` |
-| Lista/nuvem de comentários | `COMENTARIOS` |
+| Lista de comentários | `COMENTARIOS` |
 
-### Dois caminhos possíveis
+Rode **`gerarIndicadores()`** (ou o botão *"Regravar abas da planilha"*) antes de atualizar o relatório — essas abas só mudam quando a função roda.
 
-1. **Looker Studio (mais rápido, sem código)** — conecte o Looker Studio à planilha, aponte cada gráfico para a aba correspondente e compartilhe o relatório **apenas com o RH**. Como as abas já estão normalizadas, é praticamente arrastar e soltar.
+### Cuidados
 
-2. **Painel dentro do próprio Apps Script (mais controle)** — criar uma segunda página roteada por parâmetro (ex.: `?page=painel`) no `doGet`, renderizando HTML que consome funções server-side. As funções de leitura ficariam assim:
-   - `obterPainel()` → devolve a aba `PAINEL` em JSON
-   - `obterAnalisePorPergunta(area)` → detalhamento de uma área
-   - `obterResumoPerguntas()` → ranking dos temas
-   - `obterComentarios(area)` → comentários já embaralhados
-
-   O trabalho pesado já está feito: `agregarRespostas_()` devolve tudo estruturado em memória, então essas funções são basicamente formatar o retorno em JSON.
-
-### Cuidados ao construir o painel
-
-- **Acesso:** o painel do RH deve ficar numa implantação **separada** com *"Quem pode acessar: Somente eu"* ou restrito à organização — **nunca** "Qualquer pessoa", que é a configuração do formulário.
-- **Mantenha os cortes de anonimato** também no painel. Não leia a aba `Respostas` crua para montar médias: use as abas de análise, que já aplicam os mínimos.
-- **Ciclos de pesquisa:** hoje há um único ciclo. Para comparar períodos, o caminho é usar a aba `CONFIG` (`status`, `periodo_inicio`, `periodo_fim`) e arquivar as respostas de cada ciclo antes de abrir o próximo.
+- **Compartilhe o relatório apenas com o RH.** Ele contém os mesmos dados do painel, mas sem a senha na frente.
+- **Não leia a aba `Respostas` crua para montar médias** — use as abas de análise, que já aplicam os mínimos de anonimato. A `Respostas` não tem nenhum corte.
+- **Ciclos de pesquisa:** hoje há um único ciclo. Para comparar períodos, use a aba `CONFIG` (`status`, `periodo_inicio`, `periodo_fim`) e **arquive a aba `Respostas`** (duplicar e renomear, ex.: `Respostas_2026_1`) antes de abrir o próximo ciclo.
 
 ---
 
@@ -386,6 +403,10 @@ As abas de análise já foram desenhadas pensando no painel — elas são **tabe
 | "Você já respondeu" aparecendo no teste | É o bloqueio local. Confirme que `BLOQUEAR_REENVIO` está `false`, ou use aba anônima. |
 | Abas de análise vazias | Rode **`gerarIndicadores()`**. Se continuar vazio, confira se a aba `Respostas` tem dados. |
 | Colunas de nota em branco com "Oculto por anonimato" | Normal: a área ainda não atingiu o mínimo de respostas. A coluna **Status** diz exatamente o que falta. |
+| `?page=painel` abre o **formulário** em vez do painel | A implantação está numa versão antiga do código. *Implantar → Gerenciar implantações → ✏️ → **Nova versão** → Implantar.* |
+| Painel diz "Senha incorreta" com a senha certa | A senha foi gravada em **outro projeto** do Apps Script, ou `configurarSenhaDoPainel()` rodou com a linha em branco. Rode `verificarSenhaDoPainel()` e configure de novo. |
+| *Exportar CSV* não baixa nada | Isso é esperado: o Apps Script não deixa a página iniciar downloads. O arquivo vai para o **seu Google Drive** e o painel mostra o link. |
+| Comentários com "Resposta de teste…" no painel | Os dados fictícios ainda estão na planilha. Rode **`apagarDadosDeTeste()`**. |
 
 ---
 
@@ -402,4 +423,12 @@ Navegação para trás disponível em todas as etapas (o botão **← Anterior**
 ---
 
 **Status:** ✅ Pronto para produção
-**Escopo:** formulário de resposta anônimo (a interface do RH/painel é a próxima etapa).
+**Escopo:** formulário de resposta anônimo + painel do RH com senha, na mesma URL (`?page=painel`).
+
+### ✅ Antes de abrir para a empresa
+
+- [ ] `apagarDadosDeTeste()` executado (nenhuma "Resposta de teste…" na planilha)
+- [ ] `BLOQUEAR_REENVIO = true` no `main.gs` (hoje está `false` para permitir testes repetidos)
+- [ ] `configurarSenhaDoPainel()` executado e a senha **apagada da linha do código**
+- [ ] Nova versão implantada depois da última alteração
+- [ ] Acesso à aba **`Respostas`** restrito — ela é a única sem cortes de anonimato
