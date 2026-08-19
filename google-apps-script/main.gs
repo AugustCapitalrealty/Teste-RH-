@@ -575,9 +575,8 @@ function getFormHTML() {
     const MIN_CHARS = 3;
 
     // Impede responder duas vezes no MESMO navegador (evita reenvio acidental).
-    // Deixe false durante os testes, para poder responder quantas vezes quiser.
-    // Coloque true antes de divulgar o link para valer.
-    const BLOQUEAR_REENVIO = false;
+    // Volte para false se precisar testar o formulário várias vezes.
+    const BLOQUEAR_REENVIO = true;
 
     const STORAGE_SEEN_KEY = 'anon_intro_seen_pesquisa_360';
     const STORAGE_DONE_KEY = 'submitted_pesquisa_360';

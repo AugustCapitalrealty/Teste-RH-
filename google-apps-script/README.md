@@ -334,9 +334,19 @@ Duas ressalvas honestas sobre esse número:
 | 🟢 Bom | 3,6 a 4,3 |
 | 🟩 Ótimo | acima de 4,3 |
 
-### Gráfico de aranha (radar)
+### Gráfico comparativo — aranha, colunas ou linhas
 
-Fica no bloco **Detalhe por área** e usa os mesmos seletores da tabela. Os 7 critérios são os eixos, sempre na ordem do formulário, e a escala é a mesma 0–5 das barras — a teia marca 1, 2, 3, 4 e a borda externa é o 5.
+Fica no bloco **Detalhe por área** e usa os mesmos seletores da tabela. Os botões no topo trocam o formato, sempre com os **mesmos dados** e a **mesma escala 0–5**:
+
+| Formato | Melhor para |
+|---|---|
+| 🕸️ **Aranha** | ver o "formato" de uma área de relance — onde ela é forte e onde afunda |
+| 📊 **Colunas** | comparar valor a valor num critério; é onde a diferença entre autoavaliação e percepção externa fica mais óbvia |
+| 📈 **Linhas** | acompanhar várias áreas ao longo dos 7 critérios sem poluir |
+
+Os 7 critérios ficam sempre na ordem do formulário. Na aranha a teia marca 1, 2, 3, 4 e a borda externa é o 5; em colunas e linhas o eixo vertical vai de 0 a 5 com grade em cada inteiro.
+
+> A escala é fixa de propósito, igual ao resto do painel. Em *linhas*, quando as áreas estão todas perto de 3, as curvas ficam próximas — isso é o dado real, não um defeito do gráfico. Se quiser enxergar a diferença ampliada, use *colunas* com a autoavaliação ligada.
 
 Serve para as três comparações:
 
@@ -357,7 +367,9 @@ O gráfico é **SVG gerado no próprio código** — o Apps Script bloqueia bibl
 | **Imprimir / PDF** | Abre a impressão do navegador já formatada (menus, filtros e botões somem; os blocos não quebram no meio). Escolha *"Salvar como PDF"* no destino. |
 | **Regravar abas da planilha** | Roda `gerarIndicadores()` — regenera as abas de análise. Útil para Looker Studio ou para exportar. Não é necessário para o painel funcionar. |
 | **Buscar dados novos** | Relê a planilha sem recarregar a página. |
-| **Exportar CSV** (no bloco de comentários) | Gera um `.csv` com os comentários **do filtro de área ativo** e salva **no seu Google Drive** (o Apps Script não permite download direto). O painel devolve o link do arquivo. O CSV usa `;` e vem com BOM, então o Excel abre com os acentos certos. |
+| **Exportar CSV** (no bloco de comentários) | Gera um `.csv` com os comentários **dos filtros ativos** (área, pergunta e origem) e salva **no seu Google Drive** (o Apps Script não permite download direto). O painel devolve o link do arquivo. O CSV usa `;` e vem com BOM, então o Excel abre com os acentos certos. |
+
+**Filtro de origem:** separa o que veio **de outras áreas** do que a própria área escreveu sobre si (**autoavaliação**). Útil para ler os dois lados do mesmo assunto — o que a área acha que faz bem × o que as outras acham. O filtro também vale para a exportação e para os termos mais citados.
 
 **Termos mais citados:** contagem simples de palavras, cada palavra contada **uma vez por comentário**. Palavras sem valor analítico (artigos, verbos genéricos) e os **nomes das áreas** ficam de fora — a área já aparece no crachá de cada comentário. Clicar num termo joga a palavra na busca. Não é análise de sentimento: é frequência, e serve para achar assunto, não para medir humor.
 
@@ -395,10 +407,15 @@ Todos os cortes de anonimato valem aqui igual: áreas abaixo do mínimo aparecem
 - ⚠️ **Risco residual:** na aba `Respostas` crua, as linhas de um mesmo envio ficam **adjacentes** (foram inseridas juntas).
   Isso não é eliminável por código. Por isso o RH deve trabalhar pelas abas de análise (que agregam e embaralham) e o acesso à
   planilha bruta deve ser **restrito a quem realmente precisa**.
-- **Bloqueio de duplicidade:** controlado pela constante `BLOQUEAR_REENVIO` no `main.gs`.
-  - `false` (padrão atual, **modo teste**): dá para responder quantas vezes quiser.
-  - `true`: marca no `localStorage` do navegador e impede responder de novo. Evita reenvio acidental, mas **não** impede alguém decidido de usar outro navegador/aba anônima — isso exigiria login (fora do escopo desta versão).
-  - ⚠️ **Lembre de mudar para `true` antes de divulgar o link para valer.**
+- **Bloqueio de duplicidade:** controlado pela constante `BLOQUEAR_REENVIO` no `main.gs`. **Está `true`.**
+  - Ao enviar, o formulário marca o `localStorage` do navegador. Numa segunda visita aparece só "✅ Você já respondeu esta pesquisa".
+  - Essa trava é **por navegador**, não no servidor. Ela resolve o reenvio acidental (recarregar a página, clicar duas vezes), mas
+    **não** impede alguém decidido de usar outro navegador ou aba anônima. Impedir isso exigiria login — o que acabaria com o anonimato,
+    que é justamente a premissa da pesquisa.
+  - Por isso a contagem de participação no painel é de **envios**, não de pessoas distintas.
+  - A tela de "já respondeu" **não menciona navegador nem aba anônima**, de propósito: não convém ensinar o caminho. Se você mexer nesse
+    texto, mantenha assim.
+  - Para testar o formulário várias vezes, mude para `false` temporariamente — e lembre de voltar para `true`.
 
 > ⚖️ **Sobre os mínimos:** são o que sustenta a promessa feita ao respondente na tela ("os resultados são analisados de forma agregada, nunca individual"). Se você baixar `MINIMO_AUTOAVALIACAO` para 1 ou 2 numa área pequena, a "média" passa a revelar a opinião de uma ou duas pessoas identificáveis. Prefira comunicar que faltam respostas a enfraquecer o corte.
 
@@ -437,7 +454,7 @@ Rode **`gerarIndicadores()`** (ou o botão *"Regravar abas da planilha"*) antes 
 | `salvarResposta is not defined` / `servirPainel_ is not defined` | Você atualizou só um dos arquivos. **Cole os três** (`main.gs`, `sheets.gs`, `painel.gs`) — eles se chamam entre si. |
 | Tela em branco após enviar / logo cortada | Você colou uma versão antiga/incompleta. Cole o `main.gs` **completo** de novo. |
 | `Cannot read properties of null` ao rodar funções | ID da planilha errado no `sheets.gs`, ou a aba não existe. Confira `ID_PLANILHA` e rode `inicializarPlanilha()`. |
-| "Você já respondeu" aparecendo no teste | É o bloqueio local. Confirme que `BLOQUEAR_REENVIO` está `false`, ou use aba anônima. |
+| "Você já respondeu" aparecendo no teste | É a trava de reenvio, que está **ligada**. Para testar várias vezes, mude `BLOQUEAR_REENVIO` para `false` no `main.gs` (e lembre de voltar para `true`). |
 | Abas de análise vazias | Rode **`gerarIndicadores()`**. Se continuar vazio, confira se a aba `Respostas` tem dados. |
 | Colunas de nota em branco com "Oculto por anonimato" | Normal: a área ainda não atingiu o mínimo de respostas. A coluna **Status** diz exatamente o que falta. |
 | `?page=painel` abre o **formulário** em vez do painel | A implantação está numa versão antiga do código. *Implantar → Gerenciar implantações → ✏️ → **Nova versão** → Implantar.* |
@@ -465,7 +482,7 @@ Navegação para trás disponível em todas as etapas (o botão **← Anterior**
 ### ✅ Antes de abrir para a empresa
 
 - [ ] `apagarDadosDeTeste()` executado (nenhuma "Resposta de teste…" na planilha)
-- [ ] `BLOQUEAR_REENVIO = true` no `main.gs` (hoje está `false` para permitir testes repetidos)
+- [x] `BLOQUEAR_REENVIO = true` no `main.gs` — já está ligado. Para voltar a testar o formulário várias vezes, mude para `false` temporariamente
 - [ ] `configurarSenhaDoPainel()` executado e a senha **apagada da linha do código**
 - [ ] Nova versão implantada depois da última alteração
 - [ ] Acesso à aba **`Respostas`** restrito — ela é a única sem cortes de anonimato

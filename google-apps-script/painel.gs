@@ -301,13 +301,20 @@ function regerarAbasDaPlanilha(senha) {
  * Downloads diretos são bloqueados dentro do Apps Script, então gravamos o
  * arquivo e entregamos a URL — o RH clica e baixa/abre normalmente.
  */
-function exportarComentarios(senha, area) {
+function exportarComentarios(senha, filtros) {
   if (!senhaConfere_(senha)) return { negado: true };
 
   const dados = obterDadosPainel(senha);
   if (dados.vazio) return { erro: 'Não há comentários para exportar.' };
 
-  const lista = dados.comentarios.filter(function (c) { return !area || c.area === area; });
+  // Aceita string (versões antigas do painel) ou o objeto com os três filtros da tela.
+  const f = (typeof filtros === 'string') ? { area: filtros } : (filtros || {});
+  const lista = dados.comentarios.filter(function (c) {
+    if (f.area && c.area !== f.area) return false;
+    if (f.pergunta && c.pergunta !== f.pergunta) return false;
+    if (f.origem && c.origem !== f.origem) return false;
+    return true;
+  });
   if (lista.length === 0) return { erro: 'Nenhum comentário com esse filtro.' };
 
   function celula(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
@@ -318,7 +325,8 @@ function exportarComentarios(senha, area) {
 
   // BOM para o Excel abrir os acentos corretamente
   const conteudo = '﻿' + linhas.join('\r\n');
-  const nome = 'Comentarios' + (area ? '-' + area.replace(/[^\wÀ-ÿ]+/g, '_') : '') + '-' +
+  const pedaco = function (v) { return v ? '-' + String(v).replace(/[^\wÀ-ÿ]+/g, '_').slice(0, 30) : ''; };
+  const nome = 'Comentarios' + pedaco(f.area) + pedaco(f.origem) + pedaco(f.pergunta) + '-' +
                Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd_HHmm') + '.csv';
 
   const arquivo = DriveApp.createFile(nome, conteudo, MimeType.CSV);
@@ -512,7 +520,16 @@ function getPainelHTML() {
     /* ── Gráfico de aranha ── */
     .radar-caixa { display:flex; flex-direction:column; align-items:center; gap:6px; margin:6px 0 22px; }
     .radar { width:100%; max-width:520px; height:auto; display:block; overflow:visible; }
-    .opcoes-radar { display:flex; flex-wrap:wrap; gap:10px 22px; margin:14px 0 4px; }
+    .opcoes-radar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; margin:14px 0 4px; }
+    .gcart { width:100%; max-width:760px; height:auto; display:block; }
+    .seg { display:inline-flex; background:var(--muted); border-radius:11px; padding:3px; gap:2px; }
+    .seg-btn {
+      border:0; background:transparent; border-radius:9px; padding:7px 13px; cursor:pointer;
+      font-family:inherit; font-size:12.5px; font-weight:600; color:#657386;
+      transition:background .18s ease, color .18s ease, box-shadow .18s ease;
+    }
+    .seg-btn:hover { color:var(--navy); }
+    .seg-btn.ativo { background:var(--card); color:var(--navy); box-shadow:var(--sombra-1); }
     .marcador {
       display:inline-flex; align-items:center; gap:8px; font-size:13px; color:#3C4763;
       cursor:pointer; user-select:none;
@@ -1058,13 +1075,136 @@ function getPainelHTML() {
         }).join(', '));
       });
 
-      if (!formas) return '<div class="aviso">Sem dados suficientes para desenhar o gráfico.</div>';
+      if (!formas) return semDados_();
 
-      return '<div class="radar-caixa">' +
+      return caixaGrafico_(
         '<svg viewBox="0 38 520 350" class="radar" role="img" aria-label="' +
         esc('Gráfico de aranha, escala 0 a 5. ' + descricao.join('. ')) + '">' +
-        teia + raios + formas + marcas + rotulos + '</svg>' +
+        teia + raios + formas + marcas + rotulos + '</svg>', legenda);
+    }
+
+    function semDados_() {
+      return '<div class="aviso">Sem dados suficientes para desenhar o gráfico.</div>';
+    }
+    function caixaGrafico_(svg, legenda) {
+      return '<div class="radar-caixa">' + svg +
         '<div class="legenda" style="margin-top:4px">' + legenda + '</div></div>';
+    }
+    function legendaSerie_(s) {
+      return '<span class="legenda-item"><span class="bolinha" style="background:' + s.cor +
+        (s.tracejado ? ';opacity:.55' : '') + '"></span>' + esc(s.nome) + '</span>';
+    }
+    function indicesComNota_(s, n) {
+      const v = [];
+      for (let i = 0; i < n; i++) if (s.valores[i] !== null && s.valores[i] !== undefined) v.push(i);
+      return v;
+    }
+
+    /**
+     * Eixo cartesiano compartilhado por colunas e linhas.
+     * Mesma escala 0–5 do resto do painel, com linhas de grade em cada inteiro.
+     */
+    function planoCartesiano_(eixos) {
+      const L = 34, T = 16, R = 12, B = 58, W = 720, H = 340, MAX = 5;
+      const larg = W - L - R, alt = H - T - B;
+      const fatia = larg / eixos.length;
+
+      const y = function (v) { return T + alt * (1 - Math.max(0, Math.min(MAX, v)) / MAX); };
+      const xc = function (i) { return L + fatia * (i + 0.5); };
+
+      let grade = '';
+      for (let v = 0; v <= MAX; v++) {
+        const yy = y(v);
+        grade += '<line x1="' + L + '" y1="' + yy.toFixed(1) + '" x2="' + (W - R) + '" y2="' + yy.toFixed(1) +
+                 '" stroke="rgba(21,30,73,' + (v === 0 ? '.28' : '.10') + ')" stroke-width="1"/>' +
+                 '<text x="' + (L - 8) + '" y="' + (yy + 3.5).toFixed(1) +
+                 '" text-anchor="end" font-size="10.5" fill="#8A94A6">' + v + '</text>';
+      }
+      let rotulos = '';
+      eixos.forEach(function (nome, i) {
+        rotulos += '<text x="' + xc(i).toFixed(1) + '" y="' + (T + alt + 20) +
+                   '" text-anchor="middle" font-size="12" font-weight="600" fill="#151E49">' +
+                   esc(curto(nome)) + '</text>';
+      });
+
+      return { L: L, T: T, W: W, H: H, MAX: MAX, alt: alt, fatia: fatia, y: y, xc: xc, grade: grade, rotulos: rotulos };
+    }
+
+    /** Colunas agrupadas — uma barra por série em cada critério. */
+    function colunas(eixos, series) {
+      const n = eixos.length;
+      if (!n) return '';
+      const g = planoCartesiano_(eixos);
+
+      const vivas = series.filter(function (s) { return indicesComNota_(s, n).length > 0; });
+      if (!vivas.length) return semDados_();
+
+      const grupo = g.fatia * 0.72;
+      const larguraBarra = grupo / vivas.length;
+
+      let barras = '', legenda = '', descricao = [];
+      vivas.forEach(function (s, j) {
+        indicesComNota_(s, n).forEach(function (i) {
+          const v = s.valores[i];
+          const x = g.xc(i) - grupo / 2 + j * larguraBarra;
+          const topo = g.y(v);
+          const altura = Math.max(2, g.y(0) - topo);
+          barras += '<rect x="' + (x + 1).toFixed(1) + '" y="' + topo.toFixed(1) +
+                    '" width="' + Math.max(2, larguraBarra - 2).toFixed(1) + '" height="' + altura.toFixed(1) +
+                    '" rx="3" fill="' + s.cor + '" fill-opacity="' + (s.tracejado ? '.42' : '.92') + '"' +
+                    (s.tracejado ? ' stroke="' + s.cor + '" stroke-width="1.4" stroke-dasharray="4 3"' : '') +
+                    '><title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(v)) + '</title></rect>';
+        });
+        legenda += legendaSerie_(s);
+        descricao.push(s.nome + ': ' + indicesComNota_(s, n).map(function (i) {
+          return curto(eixos[i]) + ' ' + num(s.valores[i]);
+        }).join(', '));
+      });
+
+      return caixaGrafico_(
+        '<svg viewBox="0 0 ' + g.W + ' ' + g.H + '" class="gcart" role="img" aria-label="' +
+        esc('Gráfico de colunas, escala 0 a 5. ' + descricao.join('. ')) + '">' +
+        g.grade + barras + g.rotulos + '</svg>', legenda);
+    }
+
+    /** Linhas — uma linha por série ao longo dos critérios. */
+    function linhas(eixos, series) {
+      const n = eixos.length;
+      if (!n) return '';
+      const g = planoCartesiano_(eixos);
+
+      let tracos = '', legenda = '', descricao = [], desenhou = false;
+      series.forEach(function (s) {
+        const validos = indicesComNota_(s, n);
+        if (!validos.length) return;
+        desenhou = true;
+
+        if (validos.length > 1) {
+          const pts = validos.map(function (i) {
+            return g.xc(i).toFixed(1) + ',' + g.y(s.valores[i]).toFixed(1);
+          }).join(' ');
+          tracos += '<polyline points="' + pts + '" fill="none" stroke="' + s.cor +
+                    '" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"' +
+                    (s.tracejado ? ' stroke-dasharray="5 4"' : '') + '/>';
+        }
+        validos.forEach(function (i) {
+          tracos += '<circle cx="' + g.xc(i).toFixed(1) + '" cy="' + g.y(s.valores[i]).toFixed(1) +
+                    '" r="3.6" fill="#fff" stroke="' + s.cor + '" stroke-width="2.2">' +
+                    '<title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(s.valores[i])) + '</title></circle>';
+        });
+
+        legenda += legendaSerie_(s);
+        descricao.push(s.nome + ': ' + validos.map(function (i) {
+          return curto(eixos[i]) + ' ' + num(s.valores[i]);
+        }).join(', '));
+      });
+
+      if (!desenhou) return semDados_();
+
+      return caixaGrafico_(
+        '<svg viewBox="0 0 ' + g.W + ' ' + g.H + '" class="gcart" role="img" aria-label="' +
+        esc('Gráfico de linhas, escala 0 a 5. ' + descricao.join('. ')) + '">' +
+        g.grade + tracos + g.rotulos + '</svg>', legenda);
     }
 
     function blocoDetalhe() {
@@ -1077,6 +1217,11 @@ function getPainelHTML() {
         '<div><label class="rotulo-campo" for="areaC">E com</label><select id="areaC"><option value="">— nenhuma —</option>' + opcoes + '</select></div>' +
         '</div>' +
         '<div class="opcoes-radar">' +
+        '<div class="seg" role="group" aria-label="Formato do gráfico">' +
+          '<button type="button" class="seg-btn ativo" data-grafico="aranha" onclick="trocarGrafico(this)">🕸️ Aranha</button>' +
+          '<button type="button" class="seg-btn" data-grafico="colunas" onclick="trocarGrafico(this)">📊 Colunas</button>' +
+          '<button type="button" class="seg-btn" data-grafico="linhas" onclick="trocarGrafico(this)">📈 Linhas</button>' +
+        '</div>' +
         '<label class="marcador"><input type="checkbox" id="radarEmpresa" checked> Comparar com a média da empresa</label>' +
         '<label class="marcador"><input type="checkbox" id="radarAuto"> Mostrar a autoavaliação da 1ª área</label>' +
         '</div>' +
@@ -1121,6 +1266,14 @@ function getPainelHTML() {
       desenharRadar(escolhidas, criterios);
     }
 
+    let tipoGrafico = 'aranha';
+    function trocarGrafico(botao) {
+      tipoGrafico = botao.dataset.grafico;
+      const irmaos = botao.parentNode.querySelectorAll('.seg-btn');
+      for (let i = 0; i < irmaos.length; i++) irmaos[i].classList.toggle('ativo', irmaos[i] === botao);
+      desenharDetalhe();
+    }
+
     function desenharRadar(escolhidas, criterios) {
       const eixos = criterios.map(function (c) { return c.nome; });
       const series = [];
@@ -1155,7 +1308,8 @@ function getPainelHTML() {
         });
       }
 
-      document.getElementById('radarArea').innerHTML = radar(eixos, series);
+      const desenhar = tipoGrafico === 'colunas' ? colunas : tipoGrafico === 'linhas' ? linhas : radar;
+      document.getElementById('radarArea').innerHTML = desenhar(eixos, series);
     }
 
     // ── Comentários ──
@@ -1175,6 +1329,10 @@ function getPainelHTML() {
           areas.map(function (a) { return '<option value="' + esc(a) + '">' + esc(a) + '</option>'; }).join('') + '</select></div>' +
         '<div><label class="rotulo-campo" for="filtroPergunta">Pergunta</label><select id="filtroPergunta"><option value="">Todas</option>' +
           perguntas.map(function (p) { return '<option value="' + esc(p) + '">' + esc(p) + '</option>'; }).join('') + '</select></div>' +
+        '<div><label class="rotulo-campo" for="filtroOrigem">Origem</label><select id="filtroOrigem">' +
+          '<option value="">Todas</option>' +
+          '<option value="Outra área">Só de outras áreas</option>' +
+          '<option value="Autoavaliação">Só autoavaliação</option></select></div>' +
         '<div style="flex:1;min-width:200px"><label class="rotulo-campo" for="buscaComentario">Buscar no texto</label>' +
           '<input type="search" id="buscaComentario" placeholder="palavra ou trecho…" style="width:100%"></div>' +
         '<button class="btn btn-claro" id="btnExportar" onclick="exportar()" title="Gera um arquivo CSV no seu Google Drive com os comentários da área selecionada.">⬇️ Exportar CSV</button>' +
@@ -1186,10 +1344,12 @@ function getPainelHTML() {
     function comentariosFiltrados() {
       const area = document.getElementById('filtroArea').value;
       const pergunta = document.getElementById('filtroPergunta').value;
+      const origem = document.getElementById('filtroOrigem').value;
       const busca = document.getElementById('buscaComentario').value.toLowerCase().trim();
       return dados.comentarios.filter(function (c) {
         if (area && c.area !== area) return false;
         if (pergunta && c.pergunta !== pergunta) return false;
+        if (origem && c.origem !== origem) return false;
         if (busca && c.texto.toLowerCase().indexOf(busca) === -1) return false;
         return true;
       });
@@ -1281,7 +1441,11 @@ function getPainelHTML() {
 
     function exportar() {
       const b = document.getElementById('btnExportar');
-      const area = document.getElementById('filtroArea').value;
+      const filtros = {
+        area: document.getElementById('filtroArea').value,
+        pergunta: document.getElementById('filtroPergunta').value,
+        origem: document.getElementById('filtroOrigem').value
+      };
       const original = b.textContent;
       b.disabled = true; b.textContent = 'Gerando…';
       document.getElementById('avisoExport').innerHTML = '';
@@ -1300,7 +1464,7 @@ function getPainelHTML() {
           b.disabled = false; b.textContent = original;
           document.getElementById('avisoExport').innerHTML = '<div class="aviso">Erro ao exportar: ' + esc(e && e.message ? e.message : e) + '</div>';
         })
-        .exportarComentarios(senhaAtual, area);
+        .exportarComentarios(senhaAtual, filtros);
     }
 
     // ── Ligações ──
@@ -1313,7 +1477,7 @@ function getPainelHTML() {
       });
       desenharDetalhe();
 
-      ['filtroArea','filtroPergunta'].forEach(function (id) {
+      ['filtroArea','filtroPergunta','filtroOrigem'].forEach(function (id) {
         document.getElementById(id).addEventListener('change', function () { comentariosVisiveis = POR_PAGINA; desenharComentarios(); });
       });
       document.getElementById('buscaComentario').addEventListener('input', function () { comentariosVisiveis = POR_PAGINA; desenharComentarios(); });
