@@ -324,7 +324,7 @@ Duas ressalvas honestas sobre esse número:
 - É contagem de **envios**, não de pessoas distintas. A trava de reenvio é por navegador, então quem responder duas vezes conta duas vezes — e o total pode passar de 55.
 - Na barra **por área**, o comprimento é proporcional à área que mais respondeu, não a um percentual concluído: serve para comparar áreas entre si. Não temos o número de pessoas de cada área, só o total da empresa.
 
-**Como ler os gráficos.** Todas as barras usam a **mesma escala fixa de 0 a 5**, com linhas de grade e o eixo numerado embaixo — barras de blocos diferentes são diretamente comparáveis. A legenda no topo do ranking explica as cores:
+**Como ler os gráficos.** Todas as barras usam a **mesma escala fixa de 0 a 5**, com linhas de grade e o eixo numerado embaixo — barras de blocos diferentes são diretamente comparáveis. A legenda no topo do ranking explica as cores. O **valor exato fica escrito em cima de cada barra/coluna** (ou dentro dela, em branco, quando não sobra espaço acima) — não é preciso posicionar o mouse para saber o número.
 
 | Cor | Faixa |
 |---|---|
@@ -334,7 +334,16 @@ Duas ressalvas honestas sobre esse número:
 | 🟢 Bom | 3,6 a 4,3 |
 | 🟩 Ótimo | acima de 4,3 |
 
-### Gráfico comparativo — aranha, colunas ou linhas
+### Barras ou colunas — nos quatro gráficos principais
+
+**Participação**, **Nota de cada área**, **Autoavaliação × percepção** e **Pontos fortes e fracos** têm um seletor **📏 Barras / 📊 Colunas** logo acima do gráfico. É a mesma informação nos dois formatos — troque conforme o que for mais fácil de comparar:
+
+- **Barras** (padrão): melhor para ler o nome de cada área de uma vez, lado a lado com o número.
+- **Colunas**: melhor para comparar visualmente a *altura* — no comparativo autoavaliação × percepção, por exemplo, a diferença entre as duas colunas de cada área salta aos olhos mais rápido do que duas barras empilhadas.
+
+Com muitas categorias (as 13 áreas), a versão em colunas rola na horizontal — arraste ou use a barra de rolagem para ver todas.
+
+### Gráfico comparativo — aranha, colunas ou linhas (Detalhe por área)
 
 Fica no bloco **Detalhe por área** e usa os mesmos seletores da tabela. Os botões no topo trocam o formato, sempre com os **mesmos dados** e a **mesma escala 0–5**:
 

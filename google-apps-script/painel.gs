@@ -521,7 +521,11 @@ function getPainelHTML() {
     .radar-caixa { display:flex; flex-direction:column; align-items:center; gap:6px; margin:6px 0 22px; }
     .radar { width:100%; max-width:520px; height:auto; display:block; overflow:visible; }
     .opcoes-radar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; margin:14px 0 4px; }
+    .opcoes-formato { margin:2px 0 14px; }
     .gcart { width:100%; max-width:760px; height:auto; display:block; }
+    /* Charts largos (muitas categorias, ex. 13 áreas): rolam na horizontal em vez de espremer. */
+    .gcart-scroll { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+    .gcart-scroll .gcart { max-width:none; }
     .seg { display:inline-flex; background:var(--muted); border-radius:11px; padding:3px; gap:2px; }
     .seg-btn {
       border:0; background:transparent; border-radius:9px; padding:7px 13px; cursor:pointer;
@@ -597,7 +601,7 @@ function getPainelHTML() {
     /* ── Impressão / PDF ── */
     @media print {
       body { background:#fff; }
-      .topo, .indice, .campos, .opcoes-radar, .btn, .termos, .nao-imprime { display:none !important; }
+      .topo, .indice, .campos, .opcoes-radar, .opcoes-formato, .btn, .termos, .nao-imprime { display:none !important; }
       .bloco { break-inside:avoid; page-break-inside:avoid; box-shadow:none; border:1px solid #ccc; margin-bottom:14px; }
       .preenche { transition:none !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       .comentario { break-inside:avoid; }
@@ -849,24 +853,15 @@ function getPainelHTML() {
       const p = dados.participacao;
       if (!p || !p.total) return '';
 
-      const maxArea = p.porArea.reduce(function (m, a) { return Math.max(m, a.respondentes); }, 0);
-      const linhas = p.porArea.map(function (a) {
-        const larg = maxArea > 0 ? (a.respondentes / maxArea) * 100 : 0;
-        return '<div class="linha-barra"><div class="rotulo-area">' + esc(a.nome) + '</div>' +
-          '<div class="trilho trilho-liso" role="img" aria-label="' + a.respondentes + ' pessoas">' +
-          '<div class="preenche" style="background:#2C7BE5" data-largura="' + larg + '"></div></div>' +
-          '<div class="numero" style="color:#151E49">' + a.respondentes + '</div></div>';
-      }).join('');
-
-      const escalaNota = 'Barra proporcional à área que mais respondeu (' + maxArea + ') — ' +
-        'serve para comparar áreas entre si, não é percentual concluído.';
+      const escalaNota = 'Barra proporcional à área que mais respondeu — serve para comparar áreas entre si, não é percentual concluído.';
 
       return '<section class="bloco" id="s-participacao"><h2>Participação</h2>' +
         '<div class="bloco-sub">Quantas pessoas de cada área já enviaram a pesquisa. ' +
         'Total esperado: <strong>' + p.total + ' colaboradores</strong> — ajuste em ' +
         '<code>TOTAL_COLABORADORES</code> no <code>sheets.gs</code> se o quadro mudar.</div>' +
-        '<div class="bloco-sub" style="margin-bottom:12px">' + escalaNota + '</div>' +
-        '<div class="grafico">' + linhas + '</div>' +
+        '<div class="bloco-sub" style="margin-bottom:4px">' + escalaNota + '</div>' +
+        '<div class="opcoes-formato">' + segFormato_('participacao') + '</div>' +
+        '<div id="graficoParticipacao"></div>' +
         '<div class="aviso" style="margin-top:16px">' +
         '<strong>Como este número é contado:</strong> cada envio da pesquisa contém exatamente uma ' +
         'autoavaliação (a própria área do respondente), então contamos essas autoavaliações. ' +
@@ -874,6 +869,33 @@ function getPainelHTML() {
         'É contagem de <em>envios</em>: como a trava de reenvio é por navegador, quem responder ' +
         'duas vezes conta duas vezes. Se o total passar de ' + p.total + ', é isso.' +
         '</div></section>';
+    }
+    function desenharParticipacao() {
+      const p = dados.participacao;
+      if (!p || !p.total) return;
+      const alvo = document.getElementById('graficoParticipacao');
+      if (!alvo) return;
+
+      if (formato.participacao === 'colunas') {
+        const eixos = p.porArea.map(function (a) { return a.nome; });
+        const maxArea = p.porArea.reduce(function (m, a) { return Math.max(m, a.respondentes); }, 0);
+        const passo = Math.max(1, Math.ceil(maxArea / 5));
+        const serie = [{ nome: 'Respondentes', cor: '#2C7BE5', valores: p.porArea.map(function (a) { return a.respondentes; }) }];
+        alvo.innerHTML = colunas(eixos, serie, { maxValor: Math.max(passo, maxArea), passo: passo, truncar: false });
+        return;
+      }
+
+      const maxArea = p.porArea.reduce(function (m, a) { return Math.max(m, a.respondentes); }, 0);
+      alvo.innerHTML = '<div class="grafico">' + p.porArea.map(function (a) {
+        const larg = maxArea > 0 ? (a.respondentes / maxArea) * 100 : 0;
+        return '<div class="linha-barra"><div class="rotulo-area">' + esc(a.nome) + '</div>' +
+          '<div class="trilho trilho-liso" role="img" aria-label="' + a.respondentes + ' pessoas">' +
+          '<div class="preenche" style="background:#2C7BE5" data-largura="' + larg + '"></div></div>' +
+          '<div class="numero" style="color:#151E49">' + a.respondentes + '</div></div>';
+      }).join('') + '</div>';
+      requestAnimationFrame(function () {
+        alvo.querySelectorAll('[data-largura]').forEach(function (el) { el.style.width = el.dataset.largura + '%'; });
+      });
     }
 
     // ── Legenda + eixo ──
@@ -900,8 +922,9 @@ function getPainelHTML() {
         legenda() +
         '<div class="campos"><div><label class="rotulo-campo" for="ordemAreas">Ordenar por</label>' +
         '<select id="ordemAreas"><option value="nota">Maior nota</option><option value="nota-asc">Menor nota</option>' +
-        '<option value="respostas">Mais avaliações</option><option value="alfabetica">Ordem alfabética</option></select></div></div>' +
-        '<div class="grafico" id="graficoAreas"></div>' + eixo() + '</section>';
+        '<option value="respostas">Mais avaliações</option><option value="alfabetica">Ordem alfabética</option></select></div>' +
+        segFormato_('ranking') + '</div>' +
+        '<div id="graficoAreas"></div></section>';
     }
     function desenharRanking() {
       const ordem = document.getElementById('ordemAreas').value;
@@ -912,8 +935,18 @@ function getPainelHTML() {
         if (b.notaExterna === null) return -1;
         return ordem === 'nota-asc' ? a.notaExterna - b.notaExterna : b.notaExterna - a.notaExterna;
       });
+      const alvo = document.getElementById('graficoAreas');
 
-      document.getElementById('graficoAreas').innerHTML = lista.map(function (a) {
+      if (formato.ranking === 'colunas') {
+        const eixos = lista.map(function (a) { return a.nome; });
+        const valores = lista.map(function (a) { return a.notaExterna; });
+        const cores = lista.map(function (a) { return a.notaExterna === null ? '#DADFE7' : corDaNota(a.notaExterna); });
+        const serie = [{ nome: 'Nota', cor: '#2C7BE5', cores: cores, valores: valores }];
+        alvo.innerHTML = colunas(eixos, serie, { truncar: false });
+        return;
+      }
+
+      alvo.innerHTML = '<div class="grafico">' + lista.map(function (a) {
         if (a.notaExterna === null) {
           return '<div class="linha-barra"><div class="rotulo-area">' + esc(a.nome) + '</div>' +
                  '<div class="sem-dado">aguardando ' + dados.minimoExterno + ' avaliações (tem ' + a.nExterno + ')</div>' +
@@ -923,9 +956,9 @@ function getPainelHTML() {
           '<span class="secao">' + a.nExterno + ' avaliações</span></div>' +
           barra(a.notaExterna, corDaNota(a.notaExterna), a.nome + ': nota ' + num(a.notaExterna) + ' de 5') +
           '<div class="valor-barra" style="color:' + corDoTexto(a.notaExterna) + '">' + num(a.notaExterna) + '</div></div>';
-      }).join('');
+      }).join('') + '</div>' + eixo();
       requestAnimationFrame(function () {
-        document.querySelectorAll('#graficoAreas [data-largura]').forEach(function (el) { el.style.width = el.dataset.largura + '%'; });
+        alvo.querySelectorAll('[data-largura]').forEach(function (el) { el.style.width = el.dataset.largura + '%'; });
       });
     }
 
@@ -940,7 +973,30 @@ function getPainelHTML() {
           dados.minimoAuto + ' autoavaliações. A comparação aparece quando houver respostas suficientes.</div></section>';
       }
 
-      const blocos = lista.map(function (a) {
+      return '<section class="bloco" id="s-auto"><h2>Autoavaliação × percepção das outras áreas</h2>' +
+        '<div class="bloco-sub">🪞 é como a área se avalia; 👁️ é como as outras a avaliam. ' +
+        'Diferença positiva significa que a área se vê melhor do que é vista. Ordenado pelo maior descompasso.</div>' +
+        '<div class="opcoes-formato">' + segFormato_('comparacao') + '</div>' +
+        '<div id="graficoComparacao"></div></section>';
+    }
+    function desenharComparacao() {
+      const alvo = document.getElementById('graficoComparacao');
+      if (!alvo) return;
+      const lista = dados.areas.filter(function (a) { return a.diferenca !== null; })
+        .sort(function (a, b) { return Math.abs(b.diferenca) - Math.abs(a.diferenca); });
+      if (!lista.length) return;
+
+      if (formato.comparacao === 'colunas') {
+        const eixos = lista.map(function (a) { return a.nome; });
+        const series = [
+          { nome: 'Como se vê', cor: '#151E49', valores: lista.map(function (a) { return a.notaAuto; }) },
+          { nome: 'Como a veem', cor: '#F9B310', valores: lista.map(function (a) { return a.notaExterna; }) }
+        ];
+        alvo.innerHTML = colunas(eixos, series, { truncar: false });
+        return;
+      }
+
+      alvo.innerHTML = lista.map(function (a) {
         const classe = a.diferenca >= 0.3 ? 'selo-alerta' : (a.diferenca <= -0.3 ? 'selo-ok' : 'selo-neutro');
         return '<div class="comp"><div class="comp-topo"><div class="comp-nome">' + esc(a.nome) + '</div>' +
           '<div class="selo ' + classe + '">' + (a.diferenca > 0 ? '+' : '') + num(a.diferenca) + ' · ' + esc(a.leitura) + '</div></div>' +
@@ -952,25 +1008,41 @@ function getPainelHTML() {
             '<div class="valor-barra" style="color:' + corDoTexto(a.notaExterna) + '">' + num(a.notaExterna) + '</div></div>' +
           '</div>';
       }).join('');
-
-      return '<section class="bloco" id="s-auto"><h2>Autoavaliação × percepção das outras áreas</h2>' +
-        '<div class="bloco-sub">🪞 é como a área se avalia; 👁️ é como as outras a avaliam. ' +
-        'Diferença positiva significa que a área se vê melhor do que é vista. Ordenado pelo maior descompasso.</div>' +
-        blocos + '</section>';
+      requestAnimationFrame(function () {
+        alvo.querySelectorAll('[data-largura]').forEach(function (el) { el.style.width = el.dataset.largura + '%'; });
+      });
     }
 
     // ── Critérios ──
     function blocoCriterios() {
       if (!dados.criterios.length) return '';
+      return '<section class="bloco" id="s-criterios"><h2>Pontos fortes e fracos da empresa</h2>' +
+        '<div class="bloco-sub">Média de <strong>todas as áreas juntas</strong> em cada critério, do melhor para o pior.</div>' +
+        '<div class="opcoes-formato">' + segFormato_('criterios') + '</div>' +
+        '<div id="graficoCriterios"></div></section>';
+    }
+    function desenharCriterios() {
+      const alvo = document.getElementById('graficoCriterios');
+      if (!alvo || !dados.criterios.length) return;
+
+      if (formato.criterios === 'colunas') {
+        const eixos = dados.criterios.map(function (c) { return c.nome; });
+        const cores = dados.criterios.map(function (c) { return corDaNota(c.media); });
+        const serie = [{ nome: 'Nota', cor: '#2C7BE5', cores: cores, valores: dados.criterios.map(function (c) { return c.media; }) }];
+        alvo.innerHTML = colunas(eixos, serie);
+        return;
+      }
+
       const linhas = dados.criterios.map(function (c) {
         return '<div class="linha-barra"><div class="rotulo-area">' + esc(c.nome) +
           '<span class="secao">' + esc(c.secao) + '</span></div>' +
           barra(c.media, corDaNota(c.media), c.nome + ': ' + num(c.media) + ' de 5') +
           '<div class="valor-barra" style="color:' + corDoTexto(c.media) + '">' + num(c.media) + '</div></div>';
       }).join('');
-      return '<section class="bloco" id="s-criterios"><h2>Pontos fortes e fracos da empresa</h2>' +
-        '<div class="bloco-sub">Média de <strong>todas as áreas juntas</strong> em cada critério, do melhor para o pior.</div>' +
-        '<div class="grafico">' + linhas + '</div>' + eixo() + '</section>';
+      alvo.innerHTML = '<div class="grafico">' + linhas + '</div>' + eixo();
+      requestAnimationFrame(function () {
+        alvo.querySelectorAll('[data-largura]').forEach(function (el) { el.style.width = el.dataset.largura + '%'; });
+      });
     }
 
     // ── Detalhe / comparação entre áreas ──
@@ -1040,7 +1112,7 @@ function getPainelHTML() {
       }
 
       // séries
-      let formas = '', legenda = '', descricao = [];
+      let formas = '', pontos = '', rotulosValor = '', legenda = '', descricao = [];
       const desenhaveis = series.filter(function (s) {
         let q = 0;
         for (let i = 0; i < n; i++) if (s.valores[i] !== null && s.valores[i] !== undefined) q++;
@@ -1048,6 +1120,8 @@ function getPainelHTML() {
       }).length;
       // Com 3+ camadas as manchas se somam e viram borrão: aí vale só o contorno.
       const opacidade = desenhaveis > 2 ? '.05' : '.14';
+      // E com muitas camadas, um número em cada vértice de cada uma vira ruído — aí só o hover.
+      const mostrarRotulo = desenhaveis <= 2;
 
       series.forEach(function (s) {
         const validos = [];
@@ -1064,8 +1138,12 @@ function getPainelHTML() {
                   (s.tracejado ? ' stroke-dasharray="5 4"' : '') + '/>';
         validos.forEach(function (i) {
           const q = ponto(i, s.valores[i]);
-          formas += '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="3.2" fill="' + s.cor +
+          pontos += '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="3.2" fill="' + s.cor +
                     '"><title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(s.valores[i])) + '</title></circle>';
+          if (mostrarRotulo) {
+            const fora = ponto(i, s.valores[i] + 0.42);   // desloca o número para fora do ponto, na direção do raio
+            rotulosValor += rotuloValor_(fora[0], fora[1] + 3, num(s.valores[i]), 9.5, 700);
+          }
         });
 
         legenda += '<span class="legenda-item"><span class="bolinha" style="background:' + s.cor +
@@ -1080,15 +1158,20 @@ function getPainelHTML() {
       return caixaGrafico_(
         '<svg viewBox="0 38 520 350" class="radar" role="img" aria-label="' +
         esc('Gráfico de aranha, escala 0 a 5. ' + descricao.join('. ')) + '">' +
-        teia + raios + formas + marcas + rotulos + '</svg>', legenda);
+        teia + raios + formas + pontos + rotulosValor + marcas + rotulos + '</svg>', legenda);
     }
 
     function semDados_() {
       return '<div class="aviso">Sem dados suficientes para desenhar o gráfico.</div>';
     }
-    function caixaGrafico_(svg, legenda) {
-      return '<div class="radar-caixa">' + svg +
-        '<div class="legenda" style="margin-top:4px">' + legenda + '</div></div>';
+    function caixaGrafico_(svg, legenda, larguraSvg) {
+      // Gráficos largos (muitas categorias) rolam na horizontal em vez de espremer tudo.
+      const rola = larguraSvg && larguraSvg > 720;
+      const miolo = rola
+        ? '<div class="gcart-scroll"><div style="min-width:' + larguraSvg + 'px">' + svg + '</div></div>'
+        : svg;
+      return '<div class="radar-caixa">' + miolo +
+        (legenda ? '<div class="legenda" style="margin-top:4px">' + legenda + '</div>' : '') + '</div>';
     }
     function legendaSerie_(s) {
       return '<span class="legenda-item"><span class="bolinha" style="background:' + s.cor +
@@ -1100,62 +1183,109 @@ function getPainelHTML() {
       return v;
     }
 
+    /** Texto de valor sobre um ponto do gráfico, com halo branco para não sumir na grade/barra. */
+    // dentroDaForma: quando o rótulo cai por cima de uma barra saturada (valor perto do teto da
+    // escala, sem espaço acima), o halo branco fica ilegível — nesse caso usa branco sólido.
+    function rotuloValor_(x, y, texto, tamanho, peso, dentroDaForma) {
+      const estilo = dentroDaForma
+        ? 'fill="#fff"'
+        : 'fill="#151E49" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round"';
+      return '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="middle" font-size="' +
+        (tamanho || 10.5) + '" font-weight="' + (peso || 700) + '" ' + estilo + '>' + esc(texto) + '</text>';
+    }
+
     /**
      * Eixo cartesiano compartilhado por colunas e linhas.
-     * Mesma escala 0–5 do resto do painel, com linhas de grade em cada inteiro.
+     * Escala configurável (0–5 por padrão, igual ao resto do painel) com linhas de grade.
+     * Com mais de 7 categorias, os rótulos giram e passam a mostrar o nome completo
+     * (não o abreviado dos 7 critérios) — é o caso das 13 áreas.
+     *
+     * opts: { maxValor, passo, truncar }
      */
-    function planoCartesiano_(eixos) {
-      const L = 34, T = 16, R = 12, B = 58, W = 720, H = 340, MAX = 5;
-      const larg = W - L - R, alt = H - T - B;
-      const fatia = larg / eixos.length;
+    function planoCartesiano_(eixos, opts) {
+      opts = opts || {};
+      const MAX = opts.maxValor || 5;
+      const passo = opts.passo || 1;
+      const truncar = opts.truncar !== false;
+      const muitasCategorias = eixos.length > 7;
+
+      const L = muitasCategorias ? 55 : 34, T = 16, R = 14, alt = 266;
+      const B = muitasCategorias ? 150 : 58;   // rótulo rotacionado desce bastante abaixo da baseline
+      const H = T + alt + B;
+      const larguraSlot = muitasCategorias ? 62 : null;
+      const larg = larguraSlot ? larguraSlot * eixos.length : 720 - L - R;
+      const W = L + larg + R;
+      const fatia = larguraSlot || (larg / eixos.length);
 
       const y = function (v) { return T + alt * (1 - Math.max(0, Math.min(MAX, v)) / MAX); };
       const xc = function (i) { return L + fatia * (i + 0.5); };
 
       let grade = '';
-      for (let v = 0; v <= MAX; v++) {
-        const yy = y(v);
+      for (let v = 0; v <= MAX + 0.001; v += passo) {
+        const vv = Math.min(MAX, v);
+        const yy = y(vv);
+        const rotuloEixo = passo < 1 ? vv.toFixed(1).replace('.', ',') : String(Math.round(vv));
         grade += '<line x1="' + L + '" y1="' + yy.toFixed(1) + '" x2="' + (W - R) + '" y2="' + yy.toFixed(1) +
-                 '" stroke="rgba(21,30,73,' + (v === 0 ? '.28' : '.10') + ')" stroke-width="1"/>' +
+                 '" stroke="rgba(21,30,73,' + (vv === 0 ? '.28' : '.10') + ')" stroke-width="1"/>' +
                  '<text x="' + (L - 8) + '" y="' + (yy + 3.5).toFixed(1) +
-                 '" text-anchor="end" font-size="10.5" fill="#8A94A6">' + v + '</text>';
+                 '" text-anchor="end" font-size="10.5" fill="#8A94A6">' + rotuloEixo + '</text>';
       }
       let rotulos = '';
       eixos.forEach(function (nome, i) {
-        rotulos += '<text x="' + xc(i).toFixed(1) + '" y="' + (T + alt + 20) +
-                   '" text-anchor="middle" font-size="12" font-weight="600" fill="#151E49">' +
-                   esc(curto(nome)) + '</text>';
+        const texto = truncar ? curto(nome) : nome;
+        if (muitasCategorias) {
+          const x = xc(i), yy = T + alt + 15;
+          rotulos += '<text x="' + x.toFixed(1) + '" y="' + yy + '" text-anchor="end" font-size="11" ' +
+            'font-weight="600" fill="#151E49" transform="rotate(-40 ' + x.toFixed(1) + ' ' + yy + ')">' +
+            esc(texto) + '</text>';
+        } else {
+          rotulos += '<text x="' + xc(i).toFixed(1) + '" y="' + (T + alt + 20) +
+            '" text-anchor="middle" font-size="12" font-weight="600" fill="#151E49">' + esc(texto) + '</text>';
+        }
       });
 
       return { L: L, T: T, W: W, H: H, MAX: MAX, alt: alt, fatia: fatia, y: y, xc: xc, grade: grade, rotulos: rotulos };
     }
 
-    /** Colunas agrupadas — uma barra por série em cada critério. */
-    function colunas(eixos, series) {
+    /**
+     * Colunas agrupadas — uma barra por série em cada critério/categoria.
+     * series: [{ nome, cor, valores:[n|null], tracejado?, cores?:[corPorIndice] }]
+     * opts é repassado ao eixo (maxValor, passo, truncar) — ver planoCartesiano_.
+     * Mostra o valor em cima de cada barra quando há espaço e não são muitas séries de uma vez.
+     */
+    function colunas(eixos, series, opts) {
       const n = eixos.length;
       if (!n) return '';
-      const g = planoCartesiano_(eixos);
+      const g = planoCartesiano_(eixos, opts);
 
       const vivas = series.filter(function (s) { return indicesComNota_(s, n).length > 0; });
       if (!vivas.length) return semDados_();
 
       const grupo = g.fatia * 0.72;
       const larguraBarra = grupo / vivas.length;
+      const mostrarRotulo = vivas.length <= 2 && larguraBarra >= 15;
+      const fonteRotulo = larguraBarra < 26 ? 8.5 : larguraBarra < 40 ? 9.5 : 10.5;
 
-      let barras = '', legenda = '', descricao = [];
+      let barras = '', rotulosValor = '', legenda = '', descricao = [];
       vivas.forEach(function (s, j) {
         indicesComNota_(s, n).forEach(function (i) {
           const v = s.valores[i];
+          const cor = (s.cores && s.cores[i]) || s.cor;
           const x = g.xc(i) - grupo / 2 + j * larguraBarra;
           const topo = g.y(v);
           const altura = Math.max(2, g.y(0) - topo);
           barras += '<rect x="' + (x + 1).toFixed(1) + '" y="' + topo.toFixed(1) +
                     '" width="' + Math.max(2, larguraBarra - 2).toFixed(1) + '" height="' + altura.toFixed(1) +
-                    '" rx="3" fill="' + s.cor + '" fill-opacity="' + (s.tracejado ? '.42' : '.92') + '"' +
-                    (s.tracejado ? ' stroke="' + s.cor + '" stroke-width="1.4" stroke-dasharray="4 3"' : '') +
+                    '" rx="3" fill="' + cor + '" fill-opacity="' + (s.tracejado ? '.42' : '.92') + '"' +
+                    (s.tracejado ? ' stroke="' + cor + '" stroke-width="1.4" stroke-dasharray="4 3"' : '') +
                     '><title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(v)) + '</title></rect>';
+          if (mostrarRotulo) {
+            const espacoFora = topo - 6 >= g.T + 10;
+            const y = espacoFora ? topo - 6 : Math.min(topo + 14, g.y(0) - 6);
+            rotulosValor += rotuloValor_(x + larguraBarra / 2, y, num(v), fonteRotulo, 700, !espacoFora);
+          }
         });
-        legenda += legendaSerie_(s);
+        legenda += (s.cores ? '' : legendaSerie_(s));
         descricao.push(s.nome + ': ' + indicesComNota_(s, n).map(function (i) {
           return curto(eixos[i]) + ' ' + num(s.valores[i]);
         }).join(', '));
@@ -1163,17 +1293,21 @@ function getPainelHTML() {
 
       return caixaGrafico_(
         '<svg viewBox="0 0 ' + g.W + ' ' + g.H + '" class="gcart" role="img" aria-label="' +
-        esc('Gráfico de colunas, escala 0 a 5. ' + descricao.join('. ')) + '">' +
-        g.grade + barras + g.rotulos + '</svg>', legenda);
+        esc('Gráfico de colunas, escala 0 a ' + g.MAX + '. ' + descricao.join('. ')) + '">' +
+        g.grade + barras + rotulosValor + g.rotulos + '</svg>', legenda, g.W);
     }
 
-    /** Linhas — uma linha por série ao longo dos critérios. */
-    function linhas(eixos, series) {
+    /**
+     * Linhas — uma linha por série ao longo dos critérios/categorias.
+     * Com até 2 séries, mostra o valor junto de cada ponto; com mais, só o hover (title) — senão vira poluição visual.
+     */
+    function linhas(eixos, series, opts) {
       const n = eixos.length;
       if (!n) return '';
-      const g = planoCartesiano_(eixos);
+      const g = planoCartesiano_(eixos, opts);
+      const mostrarRotulo = series.filter(function (s) { return indicesComNota_(s, n).length > 0; }).length <= 2;
 
-      let tracos = '', legenda = '', descricao = [], desenhou = false;
+      let tracos = '', rotulosValor = '', legenda = '', descricao = [], desenhou = false;
       series.forEach(function (s) {
         const validos = indicesComNota_(s, n);
         if (!validos.length) return;
@@ -1188,9 +1322,13 @@ function getPainelHTML() {
                     (s.tracejado ? ' stroke-dasharray="5 4"' : '') + '/>';
         }
         validos.forEach(function (i) {
-          tracos += '<circle cx="' + g.xc(i).toFixed(1) + '" cy="' + g.y(s.valores[i]).toFixed(1) +
+          const py = g.y(s.valores[i]);
+          tracos += '<circle cx="' + g.xc(i).toFixed(1) + '" cy="' + py.toFixed(1) +
                     '" r="3.6" fill="#fff" stroke="' + s.cor + '" stroke-width="2.2">' +
                     '<title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(s.valores[i])) + '</title></circle>';
+          if (mostrarRotulo) {
+            rotulosValor += rotuloValor_(g.xc(i), Math.max(g.T + 10, py - 10), num(s.valores[i]), 10, 700);
+          }
         });
 
         legenda += legendaSerie_(s);
@@ -1203,8 +1341,8 @@ function getPainelHTML() {
 
       return caixaGrafico_(
         '<svg viewBox="0 0 ' + g.W + ' ' + g.H + '" class="gcart" role="img" aria-label="' +
-        esc('Gráfico de linhas, escala 0 a 5. ' + descricao.join('. ')) + '">' +
-        g.grade + tracos + g.rotulos + '</svg>', legenda);
+        esc('Gráfico de linhas, escala 0 a ' + g.MAX + '. ' + descricao.join('. ')) + '">' +
+        g.grade + tracos + rotulosValor + g.rotulos + '</svg>', legenda, g.W);
     }
 
     function blocoDetalhe() {
@@ -1272,6 +1410,25 @@ function getPainelHTML() {
       const irmaos = botao.parentNode.querySelectorAll('.seg-btn');
       for (let i = 0; i < irmaos.length; i++) irmaos[i].classList.toggle('ativo', irmaos[i] === botao);
       desenharDetalhe();
+    }
+
+    // ── Barras × colunas, nos gráficos que não são o comparativo de "Detalhe por área" ──
+    const formato = { participacao: 'barras', ranking: 'barras', comparacao: 'barras', criterios: 'barras' };
+    function segFormato_(secao) {
+      return '<div class="seg" role="group" aria-label="Formato do gráfico">' +
+        '<button type="button" class="seg-btn' + (formato[secao] === 'barras' ? ' ativo' : '') +
+        '" data-formato="barras" onclick="trocarFormato(\\'' + secao + '\\', this)">📏 Barras</button>' +
+        '<button type="button" class="seg-btn' + (formato[secao] === 'colunas' ? ' ativo' : '') +
+        '" data-formato="colunas" onclick="trocarFormato(\\'' + secao + '\\', this)">📊 Colunas</button></div>';
+    }
+    function trocarFormato(secao, botao) {
+      formato[secao] = botao.dataset.formato;
+      const irmaos = botao.parentNode.querySelectorAll('.seg-btn');
+      for (let i = 0; i < irmaos.length; i++) irmaos[i].classList.toggle('ativo', irmaos[i] === botao);
+      if (secao === 'participacao') desenharParticipacao();
+      else if (secao === 'ranking') desenharRanking();
+      else if (secao === 'comparacao') desenharComparacao();
+      else if (secao === 'criterios') desenharCriterios();
     }
 
     function desenharRadar(escolhidas, criterios) {
@@ -1471,6 +1628,9 @@ function getPainelHTML() {
     function ligarInteracoes() {
       document.getElementById('ordemAreas').addEventListener('change', desenharRanking);
       desenharRanking();
+      desenharParticipacao();
+      desenharComparacao();
+      desenharCriterios();
 
       ['areaA','areaB','areaC','radarEmpresa','radarAuto'].forEach(function (id) {
         document.getElementById(id).addEventListener('change', desenharDetalhe);
