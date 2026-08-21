@@ -137,7 +137,10 @@ function obterDadosPainel(senha) {
         secao: p.secao,
         externa: temE ? arredondar_(ext.media) : null,
         auto: temA ? arredondar_(aut.media) : null,
-        diferenca: (temE && temA) ? arredondar_(aut.media - ext.media) : null
+        diferenca: (temE && temA) ? arredondar_(aut.media - ext.media) : null,
+        // Nº de notas externas nesta pergunta. Pode ser menor que o total de
+        // avaliadores da área: quem respondeu "na" não entra na média.
+        n: ext.qtd || 0
       };
     });
   });
@@ -433,13 +436,32 @@ function getPainelHTML() {
     /* ── KPIs ── */
     .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
     .kpi { background:var(--card); border:1px solid var(--hairline); border-radius:18px; padding:20px; box-shadow:var(--sombra-1); }
-    .kpi-topo { display:flex; align-items:center; gap:7px; margin-bottom:9px; }
+    /* Altura fixa: sem isto, rótulo de 2 linhas empurra o número para baixo e a
+       régua de cinco KPIs — o elemento mais consultado da tela — sai torta. */
+    .kpi-topo { display:flex; align-items:flex-start; gap:7px; margin-bottom:8px; min-height:32px; }
     /* Barra do cartão de participação: 0–100%, não 0–5 — por isso sem as marcas. */
     .kpi .trilho-fino { height:7px; margin:9px 0 7px; }
     .kpi .trilho-fino::before { display:none; }
     /* Barra de contagem de pessoas: não é escala 0–5, então sem as marcas. */
     .trilho-liso::before { display:none; }
-    .kpi .ic { font-size:14px; }
+    /* Marca da média da empresa dentro do trilho (equivalente à linha tracejada das colunas) */
+    /* Amplitude do critério entre as áreas, desenhada por cima da barra da média.
+       Precisa de contraste próprio: o fundo pode ser barra colorida ou trilho cinza. */
+    .faixa-areas {
+      position:absolute; top:50%; height:2px; transform:translateY(-50%);
+      background:var(--navy); opacity:.75; pointer-events:none;
+    }
+    .faixa-areas .ponta {
+      position:absolute; top:-4px; width:2px; height:10px; background:var(--navy); border-radius:1px;
+    }
+    .faixa-areas .ponta:first-child { left:-1px; }
+    .faixa-areas .ponta:last-child { right:-1px; }
+    .linha-barra .trilho { position:relative; }
+    .marca-ref {
+      position:absolute; top:-3px; bottom:-3px; width:2px; transform:translateX(-1px);
+      background:var(--navy); opacity:.62; border-radius:2px; pointer-events:none;
+    }
+    .kpi .ic { font-size:14px; line-height:1.35; }
     .kpi .rotulo { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-fg); }
     .kpi .valor { font-size:31px; font-weight:700; letter-spacing:-.03em; line-height:1.1; }
     .kpi .nota { font-size:11.5px; color:var(--muted-fg); margin-top:6px; line-height:1.45; }
@@ -447,6 +469,7 @@ function getPainelHTML() {
       display:inline-flex; align-items:center; justify-content:center;
       width:15px; height:15px; border-radius:50%; background:var(--muted); color:var(--muted-fg);
       font-size:9.5px; font-weight:700; cursor:help; flex-shrink:0;
+      margin-left:auto; margin-top:1px;
     }
 
     /* ── Legenda de cores ── */
@@ -464,8 +487,9 @@ function getPainelHTML() {
     .trilho { background:var(--muted); border-radius:999px; height:10px; position:relative; overflow:hidden; }
     /* marcas de 1 a 4 — deixam a escala 0–5 evidente */
     .trilho::before {
-      content:''; position:absolute; inset:0; pointer-events:none;
-      background:repeating-linear-gradient(to right, transparent, transparent calc(20% - 1px), rgba(21,30,73,.14) calc(20% - 1px), rgba(21,30,73,.14) 20%);
+      content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+      background:repeating-linear-gradient(to right, transparent, transparent calc(20% - 1px), rgba(255,255,255,.45) calc(20% - 1px), rgba(255,255,255,.45) 20%);
+      mix-blend-mode:overlay;
     }
     .preenche { height:100%; border-radius:999px; width:0; transition:width .9s var(--suave); position:relative; }
     .valor-barra { font-size:13.5px; font-weight:700; min-width:46px; text-align:right; }
@@ -478,8 +502,10 @@ function getPainelHTML() {
     .comp + .comp { border-top:1px solid var(--hairline); }
     .comp-topo { display:flex; align-items:center; justify-content:space-between; margin-bottom:11px; gap:12px; flex-wrap:wrap; }
     .comp-nome { font-size:14px; font-weight:600; }
-    .par { display:grid; grid-template-columns:132px 1fr auto; gap:12px; align-items:center; margin-bottom:7px; }
-    .par .leg { font-size:11.5px; color:var(--muted-fg); font-weight:600; display:flex; align-items:center; gap:5px; }
+    .par { display:grid; grid-template-columns:150px 1fr auto; gap:12px; align-items:center; margin-bottom:9px; }
+    .par .leg { font-size:11.5px; color:var(--muted-fg); font-weight:600; display:flex; align-items:flex-start; gap:5px; }
+    .par .leg-ic { line-height:1.3; flex-shrink:0; }
+    .par .leg-txt { display:block; line-height:1.35; }
     .selo { font-size:11px; font-weight:700; padding:5px 11px; border-radius:999px; }
     .selo-alerta { background:rgba(230,51,81,.10); color:var(--t1); }
     .selo-ok { background:rgba(33,196,93,.14); color:var(--t5); }
@@ -522,14 +548,19 @@ function getPainelHTML() {
     .radar { width:100%; max-width:520px; height:auto; display:block; overflow:visible; }
     .opcoes-radar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; margin:14px 0 4px; }
     .opcoes-formato { margin:2px 0 14px; }
+    .leg-n { display:block; font-size:10.5px; color:#8A94A6; font-weight:500; margin-top:1px; white-space:nowrap; }
     .gcart { width:100%; max-width:760px; height:auto; display:block; }
     /* Charts largos (muitas categorias, ex. 13 áreas): rolam na horizontal em vez de espremer. */
-    .gcart-scroll { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+    .gcart-scroll { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; position:relative; }
+    /* Sem pista visual, o corte na borda direita lê como elemento quebrado. */
+    .gcart-scroll.tem-mais { -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 34px),transparent);
+                             mask-image:linear-gradient(to right,#000 calc(100% - 34px),transparent); }
+    .dica-rolagem { font-size:11.5px; color:#55627A; margin-bottom:6px; align-self:flex-start; }
     .gcart-scroll .gcart { max-width:none; }
     .seg { display:inline-flex; background:var(--muted); border-radius:11px; padding:3px; gap:2px; }
     .seg-btn {
       border:0; background:transparent; border-radius:9px; padding:7px 13px; cursor:pointer;
-      font-family:inherit; font-size:12.5px; font-weight:600; color:#657386;
+      font-family:inherit; font-size:12.5px; font-weight:600; color:#55627A;
       transition:background .18s ease, color .18s ease, box-shadow .18s ease;
     }
     .seg-btn:hover { color:var(--navy); }
@@ -554,8 +585,8 @@ function getPainelHTML() {
     .comentario-topo { display:flex; align-items:center; gap:8px; margin-bottom:7px; flex-wrap:wrap; }
     .tag { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:3px 9px; border-radius:999px; }
     .tag-area { background:rgba(21,30,73,.08); color:var(--navy); }
-    .tag-auto { background:rgba(249,179,16,.18); color:var(--t3); }
-    .tag-ext { background:rgba(33,196,93,.13); color:var(--t5); }
+    .tag-auto { background:rgba(21,30,73,.06); color:#3C4763; }
+    .tag-ext { background:rgba(21,30,73,.11); color:var(--navy); }
     .comentario .pergunta { font-size:11.5px; color:var(--muted-fg); margin-bottom:5px; }
     .comentario .texto { font-size:13.5px; line-height:1.6; }
     .comentario mark { background:rgba(249,179,16,.35); color:inherit; padding:1px 2px; border-radius:3px; }
@@ -573,7 +604,7 @@ function getPainelHTML() {
       .linha-barra, .escala-eixo { grid-template-columns:1fr auto; }
       .linha-barra .trilho { grid-column:1 / -1; grid-row:2; }
       .escala-eixo .escala-marcas { grid-column:1 / -1; }
-      .par { grid-template-columns:110px 1fr auto; }
+      .par { grid-template-columns:132px 1fr auto; }
       .bloco { padding:20px; border-radius:18px; }
       .kpi .valor { font-size:27px; }
     }
@@ -598,10 +629,20 @@ function getPainelHTML() {
       td, th { padding:9px 6px; }
     }
 
+    .cabecalho-impressao { display:none; }
+
     /* ── Impressão / PDF ── */
     @media print {
       body { background:#fff; }
-      .topo, .indice, .campos, .opcoes-radar, .opcoes-formato, .btn, .termos, .nao-imprime { display:none !important; }
+      .topo, .indice, .campos, .opcoes-radar, .opcoes-formato, .btn, .termos, .ajuda, .nao-imprime { display:none !important; }
+      /* O título vive no .topo, que é escondido — sem isto o PDF sai sem identificação. */
+      .cabecalho-impressao {
+        display:flex !important; justify-content:space-between; align-items:baseline;
+        border-bottom:1.5px solid var(--navy); padding-bottom:8px; margin-bottom:18px;
+      }
+      .cabecalho-impressao strong { font-size:15px; color:var(--navy); }
+      .cabecalho-impressao span { font-size:11px; color:var(--muted-fg); }
+      body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
       .bloco { break-inside:avoid; page-break-inside:avoid; box-shadow:none; border:1px solid #ccc; margin-bottom:14px; }
       .preenche { transition:none !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       .comentario { break-inside:avoid; }
@@ -652,12 +693,17 @@ function getPainelHTML() {
         <a href="#s-areas">Notas por área</a>
         <a href="#s-auto">Autoavaliação</a>
         <a href="#s-criterios">Pontos fortes e fracos</a>
+        <a href="#s-pergunta">Pergunta por área</a>
         <a href="#s-detalhe">Detalhe por área</a>
         <a href="#s-comentarios">Comentários</a>
       </div>
     </nav>
 
     <main class="pagina">
+      <div class="cabecalho-impressao" aria-hidden="true">
+        <strong>Painel do RH — Pesquisa de Satisfação Interdepartamental</strong>
+        <span>Capital Realty · <span id="dataImpressao"></span></span>
+      </div>
       <div id="carregando" class="carregando">Carregando os dados da planilha…</div>
       <div id="conteudo" class="oculto"></div>
     </main>
@@ -766,9 +812,11 @@ function getPainelHTML() {
       let atualiz = 'atualizado em ' + dados.atualizadoEm;
       if (dados.automacao && dados.automacao.ligada) atualiz += ' · abas atualizam sozinhas todo dia';
       document.getElementById('atualizadoEm').textContent = atualiz;
+      const carimbo = document.getElementById('dataImpressao');
+      if (carimbo) carimbo.textContent = dados.atualizadoEm;
 
       alvo.innerHTML = blocoAviso() + blocoVisaoGeral() + blocoParticipacao() + blocoRanking() + blocoComparacao() +
-                       blocoCriterios() + blocoDetalhe() + blocoComentarios();
+                       blocoCriterios() + blocoPorPergunta() + blocoDetalhe() + blocoComentarios();
       ligarInteracoes();
 
       requestAnimationFrame(function () {
@@ -800,6 +848,7 @@ function getPainelHTML() {
         if (!maior || Math.abs(a.diferenca) > Math.abs(maior.diferenca)) maior = a;
       });
 
+      const comAuto = dados.areas.filter(function (a) { return a.diferenca !== null; }).length;
       const p = dados.participacao;
       const kpis = '<div class="kpis">' +
         kpiParticipacao(p) +
@@ -809,13 +858,14 @@ function getPainelHTML() {
         kpi('📊', 'Nota média da empresa', num(dados.notaGeral), 'percepção entre áreas, de 0 a 5',
             'Média de todas as notas que as áreas deram umas às outras. Não inclui autoavaliações.') +
         kpi('🔓', 'Áreas com dados', liberadas + '<span style="font-size:19px;color:#657386">/' + total + '</span>',
-            faltam === 0 ? 'todas atingiram o mínimo de respostas'
-                         : faltam + ' ainda ' + (faltam === 1 ? 'aguarda' : 'aguardam') + ' mais respostas',
-            'Uma área só tem seus números exibidos depois de receber ' + dados.minimoExterno +
-            ' avaliações. Abaixo disso, a média revelaria opiniões individuais.') +
+            (faltam === 0 ? 'todas com nota externa' : faltam + ' ainda ' + (faltam === 1 ? 'aguarda' : 'aguardam') + ' mais respostas') +
+            ' · ' + comAuto + ' com comparação auto',
+            'São duas coberturas diferentes. Nota externa exige ' + dados.minimoExterno +
+            ' avaliações de outras áreas; a comparação com a autoavaliação exige, além disso, ' +
+            dados.minimoAuto + ' autoavaliações. Por isso o segundo número costuma ser menor.') +
         kpi('⚖️', 'Maior desalinhamento',
             maior ? (maior.diferenca > 0 ? '+' : '') + num(maior.diferenca) : '—',
-            maior ? esc(maior.nome) : 'ainda sem comparação possível',
+            maior ? esc(maior.nome) + ' · ' + maior.nAuto + ' autoav.' : 'ainda sem comparação possível',
             'Maior distância entre como uma área se avalia e como as outras a avaliam. ' +
             'Positivo = a área se vê melhor do que a veem.') +
         '</div>';
@@ -857,8 +907,7 @@ function getPainelHTML() {
 
       return '<section class="bloco" id="s-participacao"><h2>Participação</h2>' +
         '<div class="bloco-sub">Quantas pessoas de cada área já enviaram a pesquisa. ' +
-        'Total esperado: <strong>' + p.total + ' colaboradores</strong> — ajuste em ' +
-        '<code>TOTAL_COLABORADORES</code> no <code>sheets.gs</code> se o quadro mudar.</div>' +
+        'Total esperado: <strong>' + p.total + ' colaboradores</strong>.</div>' +
         '<div class="bloco-sub" style="margin-bottom:4px">' + escalaNota + '</div>' +
         '<div class="opcoes-formato">' + segFormato_('participacao') + '</div>' +
         '<div id="graficoParticipacao"></div>' +
@@ -880,7 +929,7 @@ function getPainelHTML() {
         const eixos = p.porArea.map(function (a) { return a.nome; });
         const maxArea = p.porArea.reduce(function (m, a) { return Math.max(m, a.respondentes); }, 0);
         const passo = Math.max(1, Math.ceil(maxArea / 5));
-        const serie = [{ nome: 'Respondentes', cor: '#2C7BE5', valores: p.porArea.map(function (a) { return a.respondentes; }) }];
+        const serie = [{ nome: 'Respondentes', cor: '#151E49', valores: p.porArea.map(function (a) { return a.respondentes; }) }];
         alvo.innerHTML = colunas(eixos, serie, { maxValor: Math.max(passo, maxArea), passo: passo, truncar: false });
         return;
       }
@@ -890,7 +939,7 @@ function getPainelHTML() {
         const larg = maxArea > 0 ? (a.respondentes / maxArea) * 100 : 0;
         return '<div class="linha-barra"><div class="rotulo-area">' + esc(a.nome) + '</div>' +
           '<div class="trilho trilho-liso" role="img" aria-label="' + a.respondentes + ' pessoas">' +
-          '<div class="preenche" style="background:#2C7BE5" data-largura="' + larg + '"></div></div>' +
+          '<div class="preenche" style="background:var(--navy)" data-largura="' + larg + '"></div></div>' +
           '<div class="numero" style="color:#151E49">' + a.respondentes + '</div></div>';
       }).join('') + '</div>';
       requestAnimationFrame(function () {
@@ -941,7 +990,7 @@ function getPainelHTML() {
         const eixos = lista.map(function (a) { return a.nome; });
         const valores = lista.map(function (a) { return a.notaExterna; });
         const cores = lista.map(function (a) { return a.notaExterna === null ? '#DADFE7' : corDaNota(a.notaExterna); });
-        const serie = [{ nome: 'Nota', cor: '#2C7BE5', cores: cores, valores: valores }];
+        const serie = [{ nome: 'Nota', cor: '#151E49', cores: cores, valores: valores }];
         alvo.innerHTML = colunas(eixos, serie, { truncar: false });
         return;
       }
@@ -975,7 +1024,9 @@ function getPainelHTML() {
 
       return '<section class="bloco" id="s-auto"><h2>Autoavaliação × percepção das outras áreas</h2>' +
         '<div class="bloco-sub">🪞 é como a área se avalia; 👁️ é como as outras a avaliam. ' +
-        'Diferença positiva significa que a área se vê melhor do que é vista. Ordenado pelo maior descompasso.</div>' +
+        'Diferença positiva significa que a área se vê melhor do que é vista. Ordenado pelo maior descompasso.<br>' +
+        '<strong>Repare no número de respostas de cada lado.</strong> A autoavaliação vem do próprio time, ' +
+        'que costuma ser pequeno — uma diferença apoiada em 3 pessoas é um indício, não uma conclusão.</div>' +
         '<div class="opcoes-formato">' + segFormato_('comparacao') + '</div>' +
         '<div id="graficoComparacao"></div></section>';
     }
@@ -996,21 +1047,46 @@ function getPainelHTML() {
         return;
       }
 
+      // Quantas pessoas sustentam cada lado. Sem isso, "+1,24 — a área se vê melhor"
+      // parece igualmente sólido apoiado em 3 ou em 25 respostas.
       alvo.innerHTML = lista.map(function (a) {
-        const classe = a.diferenca >= 0.3 ? 'selo-alerta' : (a.diferenca <= -0.3 ? 'selo-ok' : 'selo-neutro');
+        // Vermelho reservado para o descompasso grande: com quase todas as áreas
+        // acima de +0,3, pintar todas de rosa faz a cor perder função.
+        const classe = a.diferenca >= 1 ? 'selo-alerta'
+                     : a.diferenca <= -1 ? 'selo-ok' : 'selo-neutro';
+        const seta = a.diferenca > 0 ? '↑' : (a.diferenca < 0 ? '↓' : '');
         return '<div class="comp"><div class="comp-topo"><div class="comp-nome">' + esc(a.nome) + '</div>' +
-          '<div class="selo ' + classe + '">' + (a.diferenca > 0 ? '+' : '') + num(a.diferenca) + ' · ' + esc(a.leitura) + '</div></div>' +
-          '<div class="par"><div class="leg"><span aria-hidden="true">🪞</span> Como se vê</div>' +
-            barra(a.notaAuto, '#151E49', a.nome + ', autoavaliação: ' + num(a.notaAuto)) +
+          '<div class="selo ' + classe + '" title="' + esc(a.leitura) + '">' + seta + ' ' +
+          (a.diferenca > 0 ? '+' : '') + num(a.diferenca) + '</div></div>' +
+          '<div class="par"><div class="leg"><span class="leg-ic" aria-hidden="true">🪞</span>' +
+            '<span class="leg-txt">Como se vê<span class="leg-n">' + a.nAuto +
+            (a.nAuto === 1 ? ' pessoa' : ' pessoas') + '</span></span></div>' +
+            barra(a.notaAuto, '#151E49', a.nome + ', autoavaliação: ' + num(a.notaAuto) + ', ' + a.nAuto + ' pessoas') +
             '<div class="valor-barra">' + num(a.notaAuto) + '</div></div>' +
-          '<div class="par"><div class="leg"><span aria-hidden="true">👁️</span> Como a veem</div>' +
-            barra(a.notaExterna, corDaNota(a.notaExterna), a.nome + ', percepção externa: ' + num(a.notaExterna)) +
+          '<div class="par"><div class="leg"><span class="leg-ic" aria-hidden="true">👁️</span>' +
+            '<span class="leg-txt">Como a veem<span class="leg-n">' + a.nExterno +
+            ' avaliações</span></span></div>' +
+            barra(a.notaExterna, corDaNota(a.notaExterna), a.nome + ', percepção externa: ' + num(a.notaExterna) + ', ' + a.nExterno + ' avaliações') +
             '<div class="valor-barra" style="color:' + corDoTexto(a.notaExterna) + '">' + num(a.notaExterna) + '</div></div>' +
           '</div>';
-      }).join('');
+      }).join('') + rodapeForaDaComparacao_(lista);
       requestAnimationFrame(function () {
         alvo.querySelectorAll('[data-largura]').forEach(function (el) { el.style.width = el.dataset.largura + '%'; });
       });
+    }
+
+    // Quem não entra na comparação some da tela sem explicação nenhuma — o que,
+    // somado ao cartão "áreas com dados", passa a impressão de cobertura total.
+    function rodapeForaDaComparacao_(lista) {
+      const dentro = {};
+      lista.forEach(function (a) { dentro[a.nome] = true; });
+      const fora = dados.areas.filter(function (a) { return !dentro[a.nome]; });
+      if (!fora.length) return '';
+      return '<div class="aviso" style="margin-top:16px"><strong>' + fora.length +
+        (fora.length === 1 ? ' área não aparece' : ' áreas não aparecem') + ' nesta comparação</strong> — ' +
+        fora.map(function (a) { return esc(a.nome) + ' (' + a.nAuto + ' autoav., ' + a.nExterno + ' externas)'; }).join(', ') +
+        '. Falta atingir ' + dados.minimoExterno + ' avaliações externas e ' + dados.minimoAuto +
+        ' autoavaliações ao mesmo tempo.</div>';
     }
 
     // ── Critérios ──
@@ -1018,6 +1094,7 @@ function getPainelHTML() {
       if (!dados.criterios.length) return '';
       return '<section class="bloco" id="s-criterios"><h2>Pontos fortes e fracos da empresa</h2>' +
         '<div class="bloco-sub">Média de <strong>todas as áreas juntas</strong> em cada critério, do melhor para o pior.</div>' +
+        legenda() +
         '<div class="opcoes-formato">' + segFormato_('criterios') + '</div>' +
         '<div id="graficoCriterios"></div></section>';
     }
@@ -1028,21 +1105,200 @@ function getPainelHTML() {
       if (formato.criterios === 'colunas') {
         const eixos = dados.criterios.map(function (c) { return c.nome; });
         const cores = dados.criterios.map(function (c) { return corDaNota(c.media); });
-        const serie = [{ nome: 'Nota', cor: '#2C7BE5', cores: cores, valores: dados.criterios.map(function (c) { return c.media; }) }];
+        const serie = [{ nome: 'Nota', cor: '#151E49', cores: cores, valores: dados.criterios.map(function (c) { return c.media; }) }];
         alvo.innerHTML = colunas(eixos, serie);
         return;
       }
 
       const linhas = dados.criterios.map(function (c) {
-        return '<div class="linha-barra"><div class="rotulo-area">' + esc(c.nome) +
-          '<span class="secao">' + esc(c.secao) + '</span></div>' +
-          barra(c.media, corDaNota(c.media), c.nome + ': ' + num(c.media) + ' de 5') +
+        const f = faixaEntreAreas_(c.nome);
+        const detalhe = f
+          ? '<span class="secao">' + esc(c.secao) + ' · entre áreas: ' + num(f.min) + '–' + num(f.max) +
+            (f.abaixo > 0 ? ' · ' + f.abaixo + ' abaixo de 3' : '') + '</span>'
+          : '<span class="secao">' + esc(c.secao) + '</span>';
+        // Faixa desenhada no mesmo trilho: mostra que a média esconde dispersão.
+        const extensao = f
+          ? '<div class="faixa-areas" style="left:' + largura(f.min) + '%;width:' +
+            Math.max(0.6, largura(f.max) - largura(f.min)) + '%" aria-hidden="true">' +
+            '<i class="ponta"></i><i class="ponta"></i></div>'
+          : '';
+        return '<div class="linha-barra"><div class="rotulo-area">' + esc(c.nome) + detalhe + '</div>' +
+          '<div class="trilho" role="img" aria-label="' + esc(c.nome + ': média ' + num(c.media) +
+            (f ? ', variando de ' + num(f.min) + ' a ' + num(f.max) + ' entre as áreas' : '')) + '">' +
+          '<div class="preenche" style="background:' + corDaNota(c.media) + '" data-largura="' + largura(c.media) + '"></div>' +
+          extensao + '</div>' +
           '<div class="valor-barra" style="color:' + corDoTexto(c.media) + '">' + num(c.media) + '</div></div>';
       }).join('');
-      alvo.innerHTML = '<div class="grafico">' + linhas + '</div>' + eixo();
+      alvo.innerHTML = '<div class="grafico">' + linhas + '</div>' + eixo() +
+        '<div class="bloco-sub" style="margin-top:10px">A barra colorida é a média da empresa. O traço escuro ' +
+        'sobre ela mostra <strong>da pior à melhor área naquele critério</strong>. Traço largo = problema ' +
+        'concentrado em algumas áreas. Traço estreito com nota baixa = problema de toda a empresa.</div>';
       requestAnimationFrame(function () {
         alvo.querySelectorAll('[data-largura]').forEach(function (el) { el.style.width = el.dataset.largura + '%'; });
       });
+    }
+
+    // Amplitude de um critério entre as áreas. Sai do detalhe que já está no
+    // navegador — nenhuma leitura extra da planilha.
+    function faixaEntreAreas_(nomeCriterio) {
+      const valores = [];
+      Object.keys(dados.detalhe).forEach(function (area) {
+        const d = (dados.detalhe[area] || []).filter(function (x) { return x.pergunta === nomeCriterio; })[0];
+        if (d && d.externa !== null) valores.push(d.externa);
+      });
+      if (valores.length < 2) return null;
+      return {
+        min: Math.min.apply(null, valores),
+        max: Math.max.apply(null, valores),
+        abaixo: valores.filter(function (v) { return v < 3; }).length,
+        n: valores.length
+      };
+    }
+
+    // ── Uma pergunta, todas as áreas ──
+    // Vira a leitura de lado: em vez de "como está esta área nos 7 critérios",
+    // responde "quem está bem e quem está mal NESTE critério".
+    function blocoPorPergunta() {
+      if (!dados.criterios.length) return '';
+      const perguntas = (dados.detalhe[Object.keys(dados.detalhe)[0]] || []);
+      if (!perguntas.length) return '';
+
+      const opcoes = perguntas.map(function (p, i) {
+        return '<option value="' + i + '">' + esc(p.pergunta) + '</option>';
+      }).join('');
+
+      return '<section class="bloco" id="s-pergunta"><h2>Pergunta por área</h2>' +
+        '<div class="bloco-sub">Escolha um critério e veja <strong>todas as áreas</strong> nele, ' +
+        'lado a lado. A linha tracejada marca a média da empresa naquele critério.</div>' +
+        legenda() +
+        '<div class="campos">' +
+        '<div style="flex:1;min-width:240px"><label class="rotulo-campo" for="perguntaAlvo">Pergunta</label>' +
+        '<select id="perguntaAlvo" style="width:100%">' + opcoes + '</select></div>' +
+        '<div><label class="rotulo-campo" for="ordemPergunta">Ordenar por</label>' +
+        '<select id="ordemPergunta">' +
+        '<option value="nota">Maior nota</option>' +
+        '<option value="nota-asc">Menor nota</option>' +
+        '<option value="respostas">Mais avaliações</option>' +
+        '<option value="respostas-asc">Menos avaliações</option>' +
+        '<option value="alfabetica">Ordem alfabética</option>' +
+        '</select></div>' +
+        segFormato_('pergunta') + '</div>' +
+        '<div class="opcoes-radar"><label class="marcador">' +
+        '<input type="checkbox" id="perguntaAuto"> Mostrar também a autoavaliação de cada área</label></div>' +
+        '<div id="resumoPergunta"></div>' +
+        '<div id="graficoPergunta"></div></section>';
+    }
+
+    function desenharPorPergunta() {
+      const seletor = document.getElementById('perguntaAlvo');
+      const alvo = document.getElementById('graficoPergunta');
+      if (!seletor || !alvo) return;
+
+      const idx = parseInt(seletor.value, 10) || 0;
+      const ordem = document.getElementById('ordemPergunta').value;
+      const comAuto = document.getElementById('perguntaAuto').checked;
+
+      // Uma linha por área, já com a nota daquela pergunta
+      const linhas = dados.areas.map(function (a) {
+        const d = (dados.detalhe[a.nome] || [])[idx] || {};
+        return {
+          nome: a.nome,
+          externa: d.externa === undefined ? null : d.externa,
+          auto: d.auto === undefined ? null : d.auto,
+          n: d.n || 0,
+          pergunta: d.pergunta || ''
+        };
+      });
+
+      linhas.sort(function (x, y) {
+        if (ordem === 'alfabetica') return x.nome.localeCompare(y.nome, 'pt-BR');
+        if (ordem === 'respostas') return y.n - x.n;
+        if (ordem === 'respostas-asc') return x.n - y.n;
+        if (x.externa === null) return 1;
+        if (y.externa === null) return -1;
+        return ordem === 'nota-asc' ? x.externa - y.externa : y.externa - x.externa;
+      });
+
+      const nomePergunta = (perguntasDoDetalhe_()[idx] || {}).pergunta || '';
+      const mediaEmpresa = mediaDaEmpresaEm_(nomePergunta);
+      desenharResumoPergunta_(linhas, mediaEmpresa, nomePergunta);
+
+      if (formato.pergunta === 'colunas') {
+        const eixos = linhas.map(function (l) { return l.nome; });
+        const series = [{
+          nome: 'Como as outras avaliam',
+          cor: '#151E49',
+          cores: linhas.map(function (l) { return l.externa === null ? '#DADFE7' : corDaNota(l.externa); }),
+          valores: linhas.map(function (l) { return l.externa; })
+        }];
+        if (comAuto) {
+          series.push({
+            nome: 'Autoavaliação', cor: '#151E49', tracejado: true,
+            valores: linhas.map(function (l) { return l.auto; })
+          });
+        }
+        alvo.innerHTML = colunas(eixos, series, { truncar: false, referencia: mediaEmpresa, rotuloReferencia: 'média da empresa' });
+        return;
+      }
+
+      // Marca da média da empresa dentro de cada trilho — o equivalente da linha
+      // tracejada do modo Colunas. Sem isso o subtítulo prometeria algo que não aparece.
+      const marca = mediaEmpresa === null ? '' :
+        '<div class="marca-ref" style="left:' + largura(mediaEmpresa) + '%" aria-hidden="true"></div>';
+
+      alvo.innerHTML = '<div class="grafico">' + linhas.map(function (l) {
+        if (l.externa === null) {
+          return '<div class="linha-barra"><div class="rotulo-area">' + esc(l.nome) + '</div>' +
+                 '<div class="sem-dado">aguardando ' + dados.minimoExterno + ' avaliações</div>' +
+                 '<div class="valor-barra" style="color:#657386">—</div></div>';
+        }
+        const auto = (comAuto && l.auto !== null)
+          ? '<span class="secao">autoavaliação ' + num(l.auto) + '</span>'
+          : '<span class="secao">' + l.n + (l.n === 1 ? ' avaliação' : ' avaliações') + '</span>';
+        const acima = mediaEmpresa !== null && l.externa >= mediaEmpresa;
+        return '<div class="linha-barra"><div class="rotulo-area">' + esc(l.nome) + auto + '</div>' +
+          '<div class="trilho" role="img" aria-label="' + esc(l.nome + ': ' + num(l.externa) + ' de 5, ' +
+            (acima ? 'acima' : 'abaixo') + ' da média da empresa') + '">' +
+          '<div class="preenche" style="background:' + corDaNota(l.externa) + '" data-largura="' + largura(l.externa) + '"></div>' +
+          marca + '</div>' +
+          '<div class="valor-barra" style="color:' + corDoTexto(l.externa) + '">' + num(l.externa) + '</div></div>';
+      }).join('') + '</div>' + eixo() +
+      (mediaEmpresa === null ? '' :
+        '<div class="bloco-sub" style="margin-top:10px">A marca vertical em cada barra é a ' +
+        '<strong>média da empresa neste critério (' + num(mediaEmpresa) + ')</strong>.</div>');
+      requestAnimationFrame(function () {
+        alvo.querySelectorAll('[data-largura]').forEach(function (el) { el.style.width = el.dataset.largura + '%'; });
+      });
+    }
+
+    function perguntasDoDetalhe_() {
+      return dados.detalhe[Object.keys(dados.detalhe)[0]] || [];
+    }
+    function mediaDaEmpresaEm_(nomePergunta) {
+      const c = dados.criterios.filter(function (x) { return x.nome === nomePergunta; })[0];
+      return c ? c.media : null;
+    }
+
+    // Leitura em texto do que o gráfico mostra: melhor, pior e quantas áreas
+    // ficam abaixo da média da empresa naquele critério.
+    function desenharResumoPergunta_(linhas, mediaEmpresa, nomePergunta) {
+      const alvo = document.getElementById('resumoPergunta');
+      if (!alvo) return;
+      const comNota = linhas.filter(function (l) { return l.externa !== null; });
+      if (!comNota.length) { alvo.innerHTML = ''; return; }
+
+      const ordenadas = comNota.slice().sort(function (a, b) { return b.externa - a.externa; });
+      const melhor = ordenadas[0], pior = ordenadas[ordenadas.length - 1];
+      const abaixo = mediaEmpresa === null ? null
+        : comNota.filter(function (l) { return l.externa < mediaEmpresa; }).length;
+
+      alvo.innerHTML = '<div class="destaques" style="margin-top:16px">' +
+        '<div class="destaque d-info"><span class="ic" aria-hidden="true">ℹ️</span><div>' +
+        'Em <strong>' + esc(nomePergunta) + '</strong>, a média da empresa é <strong>' +
+        num(mediaEmpresa) + '</strong>. Melhor: <strong>' + esc(melhor.nome) + '</strong> (' + num(melhor.externa) + ')' +
+        '. Pior: <strong>' + esc(pior.nome) + '</strong> (' + num(pior.externa) + ')' +
+        (abaixo === null ? '' : '. <strong>' + abaixo + '</strong> de ' + comNota.length + ' áreas estão abaixo da média.') +
+        '</div></div></div>';
     }
 
     // ── Detalhe / comparação entre áreas ──
@@ -1057,7 +1313,7 @@ function getPainelHTML() {
       'Parceria estratégica': 'Parceria',
       'Grau de esforço / simplicidade': 'Esforço'
     };
-    const CORES_SERIE = ['#2C7BE5', '#9B51E0', '#E8833A'];
+    const CORES_SERIE = ['#151E49', '#5B8DEF', '#E8833A'];
 
     function curto(nome) {
       return ROTULO_CURTO[nome] || String(nome).split(/[\s/]+/)[0];
@@ -1140,8 +1396,11 @@ function getPainelHTML() {
           const q = ponto(i, s.valores[i]);
           pontos += '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="3.2" fill="' + s.cor +
                     '"><title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(s.valores[i])) + '</title></circle>';
-          if (mostrarRotulo) {
-            const fora = ponto(i, s.valores[i] + 0.42);   // desloca o número para fora do ponto, na direção do raio
+          // Só a série principal ganha número. A camada de referência (empresa,
+          // autoavaliação) é régua, não dado — e como as notas ficam quase todas
+          // entre 2,7 e 3,3, dois rótulos no mesmo eixo se sobrepõem sempre.
+          if (mostrarRotulo && !s.tracejado) {
+            const fora = ponto(i, s.valores[i] + 0.42);
             rotulosValor += rotuloValor_(fora[0], fora[1] + 3, num(s.valores[i]), 9.5, 700);
           }
         });
@@ -1168,13 +1427,14 @@ function getPainelHTML() {
       // Gráficos largos (muitas categorias) rolam na horizontal em vez de espremer tudo.
       const rola = larguraSvg && larguraSvg > 720;
       const miolo = rola
-        ? '<div class="gcart-scroll"><div style="min-width:' + larguraSvg + 'px">' + svg + '</div></div>'
+        ? '<div class="dica-rolagem nao-imprime">← arraste o gráfico para ver todas as áreas →</div>' +
+          '<div class="gcart-scroll"><div style="min-width:' + larguraSvg + 'px">' + svg + '</div></div>'
         : svg;
       return '<div class="radar-caixa">' + miolo +
         (legenda ? '<div class="legenda" style="margin-top:4px">' + legenda + '</div>' : '') + '</div>';
     }
-    function legendaSerie_(s) {
-      return '<span class="legenda-item"><span class="bolinha" style="background:' + s.cor +
+    function legendaSerie_(s, corForcada) {
+      return '<span class="legenda-item"><span class="bolinha" style="background:' + (corForcada || s.cor) +
         (s.tracejado ? ';opacity:.55' : '') + '"></span>' + esc(s.nome) + '</span>';
     }
     function indicesComNota_(s, n) {
@@ -1285,16 +1545,43 @@ function getPainelHTML() {
             rotulosValor += rotuloValor_(x + larguraBarra / 2, y, num(v), fonteRotulo, 700, !espacoFora);
           }
         });
-        legenda += (s.cores ? '' : legendaSerie_(s));
+        // Série colorida por faixa (crítico→ótimo) não precisa de legenda própria:
+        // a legenda de escala acima do gráfico já explica as cores. Mas se houver
+        // outra série junto, o leitor precisa saber qual barra é qual.
+        legenda += (s.cores && vivas.length === 1) ? '' : legendaSerie_(s, s.cores ? '#F9B310' : null);
         descricao.push(s.nome + ': ' + indicesComNota_(s, n).map(function (i) {
           return curto(eixos[i]) + ' ' + num(s.valores[i]);
         }).join(', '));
       });
 
+      // Linha de referência opcional (ex.: média da empresa naquele critério).
+      // Fica ATRÁS das barras; o rótulo vai para o lado do gráfico onde as barras
+      // estão abaixo da linha — senão ele cai em cima das colunas mais altas.
+      let referencia = '', linhaRef = '';
+      if (opts && typeof opts.referencia === 'number') {
+        const ref = opts.referencia;
+        const yr = g.y(ref);
+        linhaRef = '<line x1="' + g.L + '" y1="' + yr.toFixed(1) + '" x2="' + (g.W - 14) + '" y2="' + yr.toFixed(1) +
+          '" stroke="#151E49" stroke-width="1.6" stroke-dasharray="6 4" opacity=".5"/>';
+
+        const principal = vivas[0].valores;
+        function livre(inicio, fim) {   // quantas barras do trecho ficam abaixo da linha
+          let q = 0;
+          for (let i = inicio; i < fim && i < n; i++) if (principal[i] !== null && principal[i] < ref) q++;
+          return q;
+        }
+        const janela = Math.min(3, n);
+        const aEsquerda = livre(0, janela) >= livre(n - janela, n);
+        referencia = '<text x="' + (aEsquerda ? g.L + 6 : g.W - 18) + '" y="' + (yr - 6).toFixed(1) +
+          '" text-anchor="' + (aEsquerda ? 'start' : 'end') + '" font-size="10.5" font-weight="700" fill="#151E49" ' +
+          'paint-order="stroke" stroke="#fff" stroke-width="3.5" stroke-linejoin="round">' +
+          esc((opts.rotuloReferencia || 'referência') + ' ' + num(ref)) + '</text>';
+      }
+
       return caixaGrafico_(
         '<svg viewBox="0 0 ' + g.W + ' ' + g.H + '" class="gcart" role="img" aria-label="' +
         esc('Gráfico de colunas, escala 0 a ' + g.MAX + '. ' + descricao.join('. ')) + '">' +
-        g.grade + barras + rotulosValor + g.rotulos + '</svg>', legenda, g.W);
+        g.grade + linhaRef + barras + rotulosValor + referencia + g.rotulos + '</svg>', legenda, g.W);
     }
 
     /**
@@ -1326,7 +1613,7 @@ function getPainelHTML() {
           tracos += '<circle cx="' + g.xc(i).toFixed(1) + '" cy="' + py.toFixed(1) +
                     '" r="3.6" fill="#fff" stroke="' + s.cor + '" stroke-width="2.2">' +
                     '<title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(s.valores[i])) + '</title></circle>';
-          if (mostrarRotulo) {
+          if (mostrarRotulo && !s.tracejado) {
             rotulosValor += rotuloValor_(g.xc(i), Math.max(g.T + 10, py - 10), num(s.valores[i]), 10, 700);
           }
         });
@@ -1413,7 +1700,7 @@ function getPainelHTML() {
     }
 
     // ── Barras × colunas, nos gráficos que não são o comparativo de "Detalhe por área" ──
-    const formato = { participacao: 'barras', ranking: 'barras', comparacao: 'barras', criterios: 'barras' };
+    const formato = { participacao: 'barras', ranking: 'barras', comparacao: 'barras', criterios: 'barras', pergunta: 'barras' };
     function segFormato_(secao) {
       return '<div class="seg" role="group" aria-label="Formato do gráfico">' +
         '<button type="button" class="seg-btn' + (formato[secao] === 'barras' ? ' ativo' : '') +
@@ -1429,6 +1716,8 @@ function getPainelHTML() {
       else if (secao === 'ranking') desenharRanking();
       else if (secao === 'comparacao') desenharComparacao();
       else if (secao === 'criterios') desenharCriterios();
+      else if (secao === 'pergunta') desenharPorPergunta();
+      ativarPistasDeRolagem();
     }
 
     function desenharRadar(escolhidas, criterios) {
@@ -1632,6 +1921,12 @@ function getPainelHTML() {
       desenharComparacao();
       desenharCriterios();
 
+      ['perguntaAlvo','ordemPergunta','perguntaAuto'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', desenharPorPergunta);
+      });
+      desenharPorPergunta();
+
       ['areaA','areaB','areaC','radarEmpresa','radarAuto'].forEach(function (id) {
         document.getElementById(id).addEventListener('change', desenharDetalhe);
       });
@@ -1645,11 +1940,28 @@ function getPainelHTML() {
       desenharComentarios();
 
       ativarIndice();
+      ativarPistasDeRolagem();
+    }
+
+    // A máscara na borda direita só faz sentido enquanto ainda há gráfico escondido.
+    function ativarPistasDeRolagem() {
+      document.querySelectorAll('.gcart-scroll').forEach(function (el) {
+        function atualizar() {
+          const sobra = el.scrollWidth - el.clientWidth - el.scrollLeft;
+          el.classList.toggle('tem-mais', sobra > 4);
+          const dica = el.previousElementSibling;
+          if (dica && dica.classList.contains('dica-rolagem')) {
+            dica.style.visibility = (el.scrollWidth - el.clientWidth > 4) ? 'visible' : 'hidden';
+          }
+        }
+        el.addEventListener('scroll', atualizar, { passive: true });
+        atualizar();
+      });
     }
 
     // Marca no índice a seção visível
     function ativarIndice() {
-      const secoes = ['s-visao','s-areas','s-auto','s-criterios','s-detalhe','s-comentarios']
+      const secoes = ['s-visao','s-areas','s-auto','s-criterios','s-pergunta','s-detalhe','s-comentarios']
         .map(function (id) { return document.getElementById(id); }).filter(Boolean);
       const links = Array.prototype.slice.call(document.querySelectorAll('.indice a'));
       if (!('IntersectionObserver' in window)) return;

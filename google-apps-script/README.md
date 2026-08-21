@@ -301,7 +301,8 @@ Confira com **`verificarSenhaDoPainel()`** (mostra se está configurada, sem rev
 | **Participação** | Quantas pessoas já responderam, no total e por área |
 | **Nota de cada área** | Ranking das áreas pela nota recebida das outras, com seletor de ordenação (maior nota, menor nota, mais avaliações, alfabética) |
 | **Autoavaliação × percepção** | Onde a área se vê melhor (ou pior) do que a veem, ordenado pelo maior descompasso |
-| **Pontos fortes e fracos** | Ranking dos 7 critérios na empresa inteira |
+| **Pontos fortes e fracos** | Ranking dos 7 critérios na empresa inteira, com a **amplitude entre áreas** de cada um |
+| **Pergunta por área** | Escolha **um critério** e veja **todas as áreas** nele, com ordenação e a média da empresa marcada |
 | **Detalhe por área** | Escolha 1 área e, se quiser, mais 2 para **comparar lado a lado** → **gráfico de aranha** nos 7 critérios + tabela com auto e diferença |
 | **O que escreveram** | Termos mais citados (clicáveis), filtros por área e por pergunta, busca com destaque no texto, paginação de 50 em 50 e exportação em CSV |
 
@@ -334,9 +335,21 @@ Duas ressalvas honestas sobre esse número:
 | 🟢 Bom | 3,6 a 4,3 |
 | 🟩 Ótimo | acima de 4,3 |
 
-### Barras ou colunas — nos quatro gráficos principais
+### Pergunta por área — o corte transversal
 
-**Participação**, **Nota de cada área**, **Autoavaliação × percepção** e **Pontos fortes e fracos** têm um seletor **📏 Barras / 📊 Colunas** logo acima do gráfico. É a mesma informação nos dois formatos — troque conforme o que for mais fácil de comparar:
+As outras seções olham **uma área nos 7 critérios**. Esta vira a leitura de lado: **um critério em todas as áreas**.
+
+É a pergunta que aparece em reunião — *"em cumprimento de prazos, quem está bem e quem está mal?"* — e que antes exigia abrir cada área uma por uma.
+
+- Seletor de **pergunta** (os 7 critérios)
+- Ordenação: maior nota, menor nota, mais avaliações, menos avaliações, alfabética
+- **Média da empresa** marcada no gráfico (traço vertical em cada barra, ou linha tracejada no modo colunas)
+- Opção de sobrepor a **autoavaliação** de cada área
+- Uma leitura em texto no topo: melhor área, pior área e quantas estão abaixo da média
+
+### Barras ou colunas — nos cinco gráficos principais
+
+**Participação**, **Nota de cada área**, **Autoavaliação × percepção**, **Pontos fortes e fracos** e **Pergunta por área** têm um seletor **📏 Barras / 📊 Colunas** logo acima do gráfico. É a mesma informação nos dois formatos — troque conforme o que for mais fácil de comparar:
 
 - **Barras** (padrão): melhor para ler o nome de cada área de uma vez, lado a lado com o número.
 - **Colunas**: melhor para comparar visualmente a *altura* — no comparativo autoavaliação × percepção, por exemplo, a diferença entre as duas colunas de cada área salta aos olhos mais rápido do que duas barras empilhadas.
@@ -377,6 +390,10 @@ O gráfico é **SVG gerado no próprio código** — o Apps Script bloqueia bibl
 | **Regravar abas da planilha** | Roda `gerarIndicadores()` — regenera as abas de análise. Útil para Looker Studio ou para exportar. Não é necessário para o painel funcionar. |
 | **Buscar dados novos** | Relê a planilha sem recarregar a página. |
 | **Exportar CSV** (no bloco de comentários) | Gera um `.csv` com os comentários **dos filtros ativos** (área, pergunta e origem) e salva **no seu Google Drive** (o Apps Script não permite download direto). O painel devolve o link do arquivo. O CSV usa `;` e vem com BOM, então o Excel abre com os acentos certos. |
+
+**Amplitude entre áreas (Pontos fortes e fracos):** cada critério mostra, além da média da empresa, **de quanto a quanto ele varia entre as áreas** — o traço escuro sobre a barra. Serve para separar dois problemas diferentes que a média sozinha confunde: traço largo = o problema está concentrado em algumas áreas (conversa com gestores); traço estreito com nota baixa = o problema é de toda a empresa (programa corporativo).
+
+**Números de respostas em Autoavaliação × percepção:** cada lado mostra em quantas respostas se apoia. A autoavaliação vem do próprio time, que costuma ser pequeno — uma diferença de +1,2 apoiada em 3 pessoas é um indício, não uma conclusão, e agora dá para ver isso na tela.
 
 **Filtro de origem:** separa o que veio **de outras áreas** do que a própria área escreveu sobre si (**autoavaliação**). Útil para ler os dois lados do mesmo assunto — o que a área acha que faz bem × o que as outras acham. O filtro também vale para a exportação e para os termos mais citados.
 
