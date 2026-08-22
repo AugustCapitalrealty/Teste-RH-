@@ -1169,7 +1169,7 @@ function getPainelHTML() {
 
       return '<section class="bloco" id="s-pergunta"><h2>Pergunta por área</h2>' +
         '<div class="bloco-sub">Escolha um critério e veja <strong>todas as áreas</strong> nele, ' +
-        'lado a lado. A linha tracejada marca a média da empresa naquele critério.</div>' +
+        'lado a lado, com a média da empresa marcada no gráfico.</div>' +
         legenda() +
         '<div class="campos">' +
         '<div style="flex:1;min-width:240px"><label class="rotulo-campo" for="perguntaAlvo">Pergunta</label>' +
