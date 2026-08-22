@@ -29,12 +29,14 @@ Versão da **Pesquisa RH 360º** (originalmente feita no Lovable/React+Supabase)
 | 3 | Executar **`inserirDadosDeTeste()`** — cria respostas fictícias | Menu *Executar* |
 | 4 | Executar **`gerarIndicadores()`** — gera as 4 abas de análise | Menu *Executar* |
 | 5 | Conferir as abas **PAINEL**, **POR_PERGUNTA**, **RESUMO_PERGUNTAS**, **COMENTARIOS** e validar o formato com a diretoria | Planilha |
-| 6 | ⚠️ Executar **`apagarDadosDeTeste()`** — **limpa tudo antes de valer** | Menu *Executar* |
+| 6 | Executar **`apagarDadosDeTeste()`** — remove só as respostas fictícias | Menu *Executar* |
 | 7 | *Implantar → Nova implantação → App da Web* (Executar como: **Eu**, Acesso: **Qualquer pessoa**) e copiar a URL | Editor |
 | 8 | Compartilhar a URL com os colaboradores | — |
 | 9 | *(opcional)* Rodar **`configurarSenhaDoPainel()`** para liberar o painel do RH em `?page=painel` | Menu *Executar* |
 
-> 🚨 **Não pule o passo 6.** Se os dados de teste ficarem na planilha, eles se misturam com as respostas reais e contaminam todos os indicadores. Depois de limpar, rode `gerarIndicadores()` de novo se quiser confirmar que as abas voltaram a ficar vazias.
+> 🚨 **Não pule o passo 6.** Se os dados de teste ficarem na planilha, eles se misturam com as respostas reais e contaminam todos os indicadores.
+>
+> ✅ **`apagarDadosDeTeste()` é seguro rodar a qualquer momento**, mesmo com a pesquisa no ar e respostas reais já gravadas: ela remove só o que foi criado por `inserirDadosDeTeste()`. Depois rode `gerarIndicadores()` para os números se refazerem sem o teste.
 
 ### B) No dia a dia — durante a coleta
 
@@ -109,7 +111,8 @@ Sempre que editar qualquer `.gs`: salve (**Ctrl+S**) → **Implantar** → **Ger
 | `inicializarPlanilha()` | **1x**, na configuração inicial | Cria as abas **CONFIG** e **Respostas**. |
 | **`gerarIndicadores()`** ⭐ | **Sempre que quiser atualizar os resultados** | Reconstrói do zero as 4 abas de análise: **PAINEL**, **POR_PERGUNTA**, **RESUMO_PERGUNTAS** e **COMENTARIOS**. |
 | `inserirDadosDeTeste()` | Opcional, para testar | Cria 52 respondentes fictícios (4 por área) para você ver os indicadores funcionando. |
-| `apagarDadosDeTeste()` | Opcional, para limpar | Apaga **todas** as linhas da aba Respostas (mantém o cabeçalho). Use com cuidado. |
+| `apagarDadosDeTeste()` | Depois de testar | Remove **apenas** as respostas fictícias. As respostas reais ficam intactas. Pode rodar com a pesquisa no ar. |
+| `apagarTODASasRespostas()` | Só para zerar um ciclo | ⚠️ Apaga **tudo**, real inclusive. Protegida: só funciona depois de você trocar `CONFIRMO` para `true` no código. |
 
 **Funções de automação** (opcional — dispensam rodar `gerarIndicadores()` na mão):
 
@@ -486,7 +489,7 @@ Rode **`gerarIndicadores()`** (ou o botão *"Regravar abas da planilha"*) antes 
 | `?page=painel` abre o **formulário** em vez do painel | A implantação está numa versão antiga do código. *Implantar → Gerenciar implantações → ✏️ → **Nova versão** → Implantar.* |
 | Painel diz "Senha incorreta" com a senha certa | A senha foi gravada em **outro projeto** do Apps Script, ou `configurarSenhaDoPainel()` rodou com a linha em branco. Rode `verificarSenhaDoPainel()` e configure de novo. |
 | *Exportar CSV* não baixa nada | Isso é esperado: o Apps Script não deixa a página iniciar downloads. O arquivo vai para o **seu Google Drive** e o painel mostra o link. |
-| Comentários com "Resposta de teste…" no painel | Os dados fictícios ainda estão na planilha. Rode **`apagarDadosDeTeste()`**. |
+| Comentários com "Resposta de teste…" no painel | Os dados fictícios ainda estão na planilha. Rode **`apagarDadosDeTeste()`** — ela remove só os fictícios e preserva as respostas reais. |
 
 ---
 
@@ -507,8 +510,26 @@ Navegação para trás disponível em todas as etapas (o botão **← Anterior**
 
 ### ✅ Antes de abrir para a empresa
 
-- [ ] `apagarDadosDeTeste()` executado (nenhuma "Resposta de teste…" na planilha)
+- [ ] `apagarDadosDeTeste()` executado (nenhuma "Resposta de teste…" na planilha) — seguro mesmo com respostas reais já gravadas
 - [x] `BLOQUEAR_REENVIO = true` no `main.gs` — já está ligado. Para voltar a testar o formulário várias vezes, mude para `false` temporariamente
 - [ ] `configurarSenhaDoPainel()` executado e a senha **apagada da linha do código**
 - [ ] Nova versão implantada depois da última alteração
 - [ ] Acesso à aba **`Respostas`** restrito — ela é a única sem cortes de anonimato
+
+---
+
+## 🛟 Como os dados de teste são separados dos reais
+
+`inserirDadosDeTeste()` grava, em toda avaliação fictícia, comentários que começam com **`Resposta de teste (`**. As linhas de nota da mesma avaliação compartilham o **Avaliação ID** — então esse ID identifica o bloco inteiro, incluindo as notas, que sozinhas seriam indistinguíveis de uma resposta real.
+
+`apagarDadosDeTeste()` usa exatamente isso:
+
+1. Varre a aba `Respostas` procurando a marca nos comentários
+2. Junta os `Avaliação ID` desses blocos
+3. Reescreve a aba só com as linhas que **não** pertencem a esses IDs
+
+Por isso ela é segura de rodar com a pesquisa no ar. Se não houver nada fictício, ela não apaga nada e diz isso no Log.
+
+> ⚠️ **Não mude a constante `MARCA_TESTE`** enquanto houver dados de teste na planilha — é por ela que a separação acontece. Se mudar, os blocos antigos deixam de ser reconhecidos e passam a contar como respostas reais nos indicadores.
+
+Para zerar a planilha de vez (novo ciclo), use `apagarTODASasRespostas()` — e **duplique a planilha antes**, porque não há desfazer.

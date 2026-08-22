@@ -10,7 +10,7 @@
  *                             Reconstrói PAINEL, POR_PERGUNTA, RESUMO_PERGUNTAS
  *                             e COMENTARIOS a partir da aba Respostas.
  *   inserirDadosDeTeste()   → opcional, popula respostas fictícias para teste.
- *   apagarDadosDeTeste()    → opcional, limpa TUDO da aba Respostas.
+ *   apagarDadosDeTeste()    → remove APENAS as respostas fictícias, preservando as reais.
  *
  * AUTOMAÇÃO (opcional — dispensa rodar gerarIndicadores() na mão):
  *   ativarAtualizacaoAutomatica()    → 1x. Passa a atualizar sozinho todo dia.
@@ -47,6 +47,13 @@ const TOTAL_COLABORADORES = 55;
 
 /** Diferença (auto − externo) a partir da qual consideramos que há desalinhamento */
 const LIMITE_DESALINHAMENTO = 0.3;
+
+/**
+ * Marca que identifica respostas fictícias criadas por inserirDadosDeTeste().
+ * É por ela que apagarDadosDeTeste() distingue teste de resposta real —
+ * não mude sem apagar os dados de teste antes.
+ */
+const MARCA_TESTE = 'Resposta de teste (';
 
 /** Nomes das abas */
 const ABA_RESPOSTAS = 'Respostas';
@@ -736,7 +743,7 @@ function inserirDadosDeTeste() {
             const base = ehAuto ? 3 : 2; // autoavaliação um pouco mais generosa
             notas['q' + indice] = String(Math.min(5, base + Math.floor(Math.random() * 3)));
           } else {
-            comentarios['q' + indice] = 'Resposta de teste (' + pergunta.nome + ') para ' + area;
+            comentarios['q' + indice] = MARCA_TESTE + pergunta.nome + ') para ' + area;
           }
         });
 
@@ -762,8 +769,62 @@ function inserirDadosDeTeste() {
 function apagarDadosDeTeste() {
   const planilha = SpreadsheetApp.openById(ID_PLANILHA);
   const aba = planilha.getSheetByName(ABA_RESPOSTAS);
-  if (!aba) return;
+  if (!aba) { Logger.log('A aba de respostas não existe.'); return; }
+
+  const dados = aba.getDataRange().getValues();
+  if (dados.length < 2) { Logger.log('Não há respostas na planilha.'); return; }
+
+  // Toda avaliação fictícia grava comentários com a MARCA_TESTE, e as linhas de
+  // nota da mesma avaliação compartilham o Avaliação ID — então o ID identifica
+  // o bloco inteiro, inclusive as notas, que sozinhas seriam indistinguíveis.
+  const idsDeTeste = {};
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][6] || '').indexOf(MARCA_TESTE) === 0) idsDeTeste[dados[i][1]] = true;
+  }
+
+  const avaliacoesFicticias = Object.keys(idsDeTeste).length;
+  if (!avaliacoesFicticias) {
+    Logger.log('Nenhum dado de teste encontrado. NADA foi apagado — as ' +
+               (dados.length - 1) + ' linhas da planilha são respostas reais.');
+    return;
+  }
+
+  const manter = dados.slice(1).filter(function (linha) { return !idsDeTeste[linha[1]]; });
+  const apagadas = (dados.length - 1) - manter.length;
+
+  // Reescreve de uma vez só. Apagar linha a linha seriam milhares de chamadas,
+  // o que estoura o limite de 6 minutos de execução do Apps Script.
+  aba.deleteRows(2, dados.length - 1);
+  if (manter.length) {
+    aba.getRange(2, 1, manter.length, manter[0].length).setValues(manter);
+  }
+
+  Logger.log(apagadas + ' linhas de teste apagadas (' + avaliacoesFicticias +
+             ' avaliações fictícias). ' + manter.length + ' linhas reais foram MANTIDAS.');
+}
+
+/**
+ * ⚠️ APAGA TODAS AS RESPOSTAS, reais inclusive. Não tem desfazer.
+ * Protegida de propósito: troque CONFIRMO para true, execute, e devolva para false.
+ * Use só para zerar a planilha antes de um novo ciclo — e faça uma cópia antes.
+ */
+function apagarTODASasRespostas() {
+  const CONFIRMO = false;
+
+  const planilha = SpreadsheetApp.openById(ID_PLANILHA);
+  const aba = planilha.getSheetByName(ABA_RESPOSTAS);
+  if (!aba) { Logger.log('A aba de respostas não existe.'); return; }
   const ultima = aba.getLastRow();
+
+  if (!CONFIRMO) {
+    Logger.log('NADA foi apagado. Esta função apagaria as ' + Math.max(0, ultima - 1) +
+               ' respostas da planilha, incluindo as reais.\n' +
+               'Se é isso mesmo que você quer: faça uma cópia da planilha, troque ' +
+               'CONFIRMO para true no código, execute, e volte para false depois.\n' +
+               'Para remover apenas as respostas fictícias, use apagarDadosDeTeste().');
+    return;
+  }
+
   if (ultima > 1) aba.deleteRows(2, ultima - 1);
-  Logger.log('Respostas apagadas.');
+  Logger.log('Todas as ' + (ultima - 1) + ' respostas foram apagadas.');
 }
