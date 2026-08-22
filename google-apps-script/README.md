@@ -226,7 +226,7 @@ Metadados chave/valor (`pesquisa_id`, `titulo_pesquisa`, `status`, `criado_em`).
 | **As perguntas** | `main.gs` → array `QUESTIONS` | Cada item tem `type` (`rating`/`text`), `secao`, `texto`. **Se mexer, atualize também `PERGUNTAS` no `sheets.gs`** — os nomes precisam bater. |
 | **Mínimo de caracteres do comentário** | `main.gs` → `const MIN_CHARS = 3` | Troque o número. |
 | **Mínimo de avaliações externas** | `sheets.gs` → `const MINIMO_EXTERNO = 5` | Abaixo disso a nota da área fica oculta. |
-| **Mínimo de autoavaliações** | `sheets.gs` → `const MINIMO_AUTOAVALIACAO = 3` | Abaixo disso a autoavaliação fica oculta. |
+| **Mínimo de autoavaliações** | `sheets.gs` → `const MINIMO_AUTOAVALIACAO = 1` | **Sem mínimo**: as áreas da empresa são pequenas e um corte maior escondia a comparação da maioria delas. Veja a ressalva abaixo. |
 | **Sensibilidade da coluna Diferença** | `sheets.gs` → `const LIMITE_DESALINHAMENTO = 0.3` | Diferenças menores que isso são lidas como "percepção alinhada". |
 | **Total de colaboradores** | `sheets.gs` → `const TOTAL_COLABORADORES = 55` | Só o denominador do indicador de participação no painel. Nenhuma nota depende disso. |
 | **Textos, cores, logo** | `main.gs` → dentro de `getFormHTML()` | HTML/CSS inline. A paleta usa variáveis CSS (`--navy`, `--e1..e5`, etc.). |
@@ -446,7 +446,17 @@ Todos os cortes de anonimato valem aqui igual: áreas abaixo do mínimo aparecem
     texto, mantenha assim.
   - Para testar o formulário várias vezes, mude para `false` temporariamente — e lembre de voltar para `true`.
 
-> ⚖️ **Sobre os mínimos:** são o que sustenta a promessa feita ao respondente na tela ("os resultados são analisados de forma agregada, nunca individual"). Se você baixar `MINIMO_AUTOAVALIACAO` para 1 ou 2 numa área pequena, a "média" passa a revelar a opinião de uma ou duas pessoas identificáveis. Prefira comunicar que faltam respostas a enfraquecer o corte.
+> ⚖️ **Sobre os mínimos**
+>
+> **`MINIMO_EXTERNO = 5` protege quem avalia** e deve ficar como está. É ele que impede que a nota de uma área revele a opinião de um punhado de pessoas identificáveis de fora.
+>
+> **`MINIMO_AUTOAVALIACAO = 1` é uma decisão consciente.** As áreas da empresa têm poucas pessoas; com um corte de 3, a comparação auto × externa não aparecia para a maioria delas — que é justamente o indicador mais útil do painel.
+>
+> O custo: numa área de **uma pessoa só**, a "média" da autoavaliação **é** a resposta daquela pessoa. Isso entra em tensão com o que o formulário promete a quem responde — *"os resultados são sempre analisados de forma agregada por área, nunca de forma individual"*.
+>
+> Como o painel lida com isso: mostra **quantas pessoas sustentam cada barra** e marca com um selo vermelho **"1 resposta"** os casos em que a autoavaliação tem uma única resposta. O RH vê o número sabendo o que ele é.
+>
+> **Se preferir manter a promessa literalmente verdadeira**, troque para `2`: o número exibido passa a ser sempre média de pelo menos duas pessoas, e só áreas de uma pessoa ficam de fora. Uma linha, e vale para o painel e para as abas da planilha.
 
 Para **testar do zero**, use uma **aba anônima** (Ctrl+Shift+N) ou limpe o `localStorage` do site.
 

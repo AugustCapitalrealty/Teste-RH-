@@ -29,14 +29,25 @@ const ID_PLANILHA = '1v1SEGIhzfBYkI4xBCexZlRfRoqn_2WaHz83S9kR9x6g';
  * ANONIMATO — mínimo de respostas para exibir números.
  * Abaixo desse valor a linha aparece sem nota e com aviso na coluna Status.
  *
- * MINIMO_EXTERNO      → avaliações que uma área recebeu DE OUTRAS áreas.
+ * MINIMO_EXTERNO → avaliações que uma área recebeu DE OUTRAS áreas.
+ *   Protege quem avalia. Mantenha em 5.
+ *
  * MINIMO_AUTOAVALIACAO → autoavaliações (pessoas da própria área).
- *   Este é menor porque áreas pequenas têm poucos integrantes; 3 ainda impede
- *   identificar uma opinião individual. Ajuste com consciência: quanto menor,
- *   mais frágil o anonimato prometido ao respondente.
+ *   Está em 1 porque as áreas da empresa são pequenas e, com um mínimo maior,
+ *   a comparação auto × externa simplesmente não aparecia para a maioria delas.
+ *
+ *   ⚠️ O QUE ISSO CUSTA: com 1, a "média" de uma área de uma pessoa só É a
+ *   resposta daquela pessoa. O painel deixa isso à vista (mostra quantas
+ *   pessoas sustentam cada barra e marca o caso de uma pessoa), mas o texto
+ *   do formulário promete ao respondente que os resultados são "analisados de
+ *   forma agregada por área — nunca de forma individual".
+ *
+ *   Se quiser manter essa promessa literalmente verdadeira, use 2: aí o número
+ *   exibido é sempre média de pelo menos duas pessoas, e só áreas de uma pessoa
+ *   ficam de fora. Trocar aqui vale para o painel E para as abas da planilha.
  */
 const MINIMO_EXTERNO = 5;
-const MINIMO_AUTOAVALIACAO = 3;
+const MINIMO_AUTOAVALIACAO = 1;
 
 /**
  * PARTICIPAÇÃO — quantas pessoas a empresa tem hoje.
@@ -458,7 +469,7 @@ function corDaDiferenca_(diferenca) {
 function montarStatus_(area, temExterno, temAuto) {
   const pendencias = [];
   if (!temExterno) pendencias.push('avaliações externas < ' + MINIMO_EXTERNO);
-  if (!temAuto) pendencias.push('autoavaliações < ' + MINIMO_AUTOAVALIACAO);
+  if (!temAuto) pendencias.push('sem autoavaliação');
   return pendencias.length === 0 ? 'OK' : 'Oculto por anonimato (' + pendencias.join('; ') + ')';
 }
 
@@ -712,7 +723,7 @@ function verificarAutomacao() {
  * A autoavaliação é puxada levemente para cima, para a coluna "Diferença" ter o que mostrar.
  */
 function inserirDadosDeTeste() {
-  const PESSOAS_POR_AREA = 4;   // precisa ser >= MINIMO_AUTOAVALIACAO para liberar a comparação
+  const PESSOAS_POR_AREA = 4;   // pessoas fictícias por área
   const AREAS_AVALIADAS = 5;    // quantas outras áreas cada pessoa avalia
 
   const areas = [

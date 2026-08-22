@@ -549,6 +549,7 @@ function getPainelHTML() {
     .opcoes-radar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; margin:14px 0 4px; }
     .opcoes-formato { margin:2px 0 14px; }
     .leg-n { display:block; font-size:10.5px; color:#8A94A6; font-weight:500; margin-top:1px; white-space:nowrap; }
+    .selo-unico { background:rgba(230,51,81,.08); color:#A8243C; border:1px solid rgba(230,51,81,.22); }
     .gcart { width:100%; max-width:760px; height:auto; display:block; }
     /* Charts largos (muitas categorias, ex. 13 áreas): rolam na horizontal em vez de espremer. */
     .gcart-scroll { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; position:relative; }
@@ -1055,9 +1056,14 @@ function getPainelHTML() {
         const classe = a.diferenca >= 1 ? 'selo-alerta'
                      : a.diferenca <= -1 ? 'selo-ok' : 'selo-neutro';
         const seta = a.diferenca > 0 ? '↑' : (a.diferenca < 0 ? '↓' : '');
+        // Uma pessoa não é uma média. O RH precisa ver isso antes de tratar o
+        // número como posição do time.
+        const umaPessoa = a.nAuto === 1;
         return '<div class="comp"><div class="comp-topo"><div class="comp-nome">' + esc(a.nome) + '</div>' +
           '<div class="selo ' + classe + '" title="' + esc(a.leitura) + '">' + seta + ' ' +
-          (a.diferenca > 0 ? '+' : '') + num(a.diferenca) + '</div></div>' +
+          (a.diferenca > 0 ? '+' : '') + num(a.diferenca) + '</div>' +
+          (umaPessoa ? '<div class="selo selo-unico" title="A autoavaliação desta área tem uma resposta só. ' +
+            'O número não é média de time — é a opinião de uma pessoa.">1 resposta</div>' : '') + '</div>' +
           '<div class="par"><div class="leg"><span class="leg-ic" aria-hidden="true">🪞</span>' +
             '<span class="leg-txt">Como se vê<span class="leg-n">' + a.nAuto +
             (a.nAuto === 1 ? ' pessoa' : ' pessoas') + '</span></span></div>' +
