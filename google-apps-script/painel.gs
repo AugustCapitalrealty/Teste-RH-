@@ -550,6 +550,7 @@ function getPainelHTML() {
     .opcoes-formato { margin:2px 0 14px; }
     .leg-n { display:block; font-size:10.5px; color:#8A94A6; font-weight:500; margin-top:1px; white-space:nowrap; }
     .selo-unico { background:rgba(230,51,81,.08); color:#A8243C; border:1px solid rgba(230,51,81,.22); }
+    .comp-selos { display:flex; gap:7px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
     .gcart { width:100%; max-width:760px; height:auto; display:block; }
     /* Charts largos (muitas categorias, ex. 13 áreas): rolam na horizontal em vez de espremer. */
     .gcart-scroll { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; position:relative; }
@@ -578,7 +579,8 @@ function getPainelHTML() {
       font-family:inherit; border:1px solid var(--border); background:#fff; color:var(--navy);
       border-radius:999px; padding:7px 14px; cursor:pointer; transition:all .2s var(--suave);
     }
-    .termo:hover { border-color:var(--navy); background:var(--muted); }
+    .termo:hover { filter:brightness(1.14); transform:translateY(-1px); }
+    .termo { transition:filter .18s ease, transform .18s ease; }
     .termo .qtd { color:var(--muted-fg); font-weight:600; font-size:11px; margin-left:5px; }
 
     /* ── Comentários ── */
@@ -931,7 +933,7 @@ function getPainelHTML() {
         const maxArea = p.porArea.reduce(function (m, a) { return Math.max(m, a.respondentes); }, 0);
         const passo = Math.max(1, Math.ceil(maxArea / 5));
         const serie = [{ nome: 'Respondentes', cor: '#151E49', valores: p.porArea.map(function (a) { return a.respondentes; }) }];
-        alvo.innerHTML = colunas(eixos, serie, { maxValor: Math.max(passo, maxArea), passo: passo, truncar: false });
+        alvo.innerHTML = colunas(eixos, serie, { maxValor: Math.max(passo, maxArea), passo: passo, truncar: false, inteiro: true });
         return;
       }
 
@@ -1025,25 +1027,58 @@ function getPainelHTML() {
 
       return '<section class="bloco" id="s-auto"><h2>Autoavaliação × percepção das outras áreas</h2>' +
         '<div class="bloco-sub">🪞 é como a área se avalia; 👁️ é como as outras a avaliam. ' +
-        'Diferença positiva significa que a área se vê melhor do que é vista. Ordenado pelo maior descompasso.<br>' +
+        'Diferença positiva significa que a área se vê melhor do que é vista.<br>' +
         '<strong>Repare no número de respostas de cada lado.</strong> A autoavaliação vem do próprio time, ' +
         'que costuma ser pequeno — uma diferença apoiada em 3 pessoas é um indício, não uma conclusão.</div>' +
-        '<div class="opcoes-formato">' + segFormato_('comparacao') + '</div>' +
+        '<div class="campos">' +
+        '<div><label class="rotulo-campo" for="ordemComparacao">Ordenar por</label>' +
+        '<select id="ordemComparacao">' +
+        '<option value="descompasso">Maior descompasso</option>' +
+        '<option value="descompasso-asc">Menor descompasso</option>' +
+        '<option value="auto">Autoavaliação: maior</option>' +
+        '<option value="auto-asc">Autoavaliação: menor</option>' +
+        '<option value="externa">Como a veem: maior</option>' +
+        '<option value="externa-asc">Como a veem: menor</option>' +
+        '<option value="alfabetica">Ordem alfabética</option>' +
+        '</select></div>' +
+        '<div><label class="rotulo-campo" for="ladoComparacao">Mostrar</label>' +
+        '<select id="ladoComparacao">' +
+        '<option value="ambos">Os dois lados</option>' +
+        '<option value="auto">Só a autoavaliação</option>' +
+        '<option value="externa">Só como a empresa avalia</option>' +
+        '</select></div>' +
+        segFormato_('comparacao') + '</div>' +
         '<div id="graficoComparacao"></div></section>';
     }
     function desenharComparacao() {
       const alvo = document.getElementById('graficoComparacao');
       if (!alvo) return;
+      const ordem = (document.getElementById('ordemComparacao') || {}).value || 'descompasso';
+      const lado = (document.getElementById('ladoComparacao') || {}).value || 'ambos';
+
       const lista = dados.areas.filter(function (a) { return a.diferenca !== null; })
-        .sort(function (a, b) { return Math.abs(b.diferenca) - Math.abs(a.diferenca); });
+        .sort(function (a, b) {
+          switch (ordem) {
+            case 'descompasso-asc': return Math.abs(a.diferenca) - Math.abs(b.diferenca);
+            case 'auto':            return b.notaAuto - a.notaAuto;
+            case 'auto-asc':        return a.notaAuto - b.notaAuto;
+            case 'externa':         return b.notaExterna - a.notaExterna;
+            case 'externa-asc':     return a.notaExterna - b.notaExterna;
+            case 'alfabetica':      return a.nome.localeCompare(b.nome, 'pt-BR');
+            default:                return Math.abs(b.diferenca) - Math.abs(a.diferenca);
+          }
+        });
       if (!lista.length) return;
 
       if (formato.comparacao === 'colunas') {
         const eixos = lista.map(function (a) { return a.nome; });
-        const series = [
-          { nome: 'Como se vê', cor: '#151E49', valores: lista.map(function (a) { return a.notaAuto; }) },
-          { nome: 'Como a veem', cor: '#F9B310', valores: lista.map(function (a) { return a.notaExterna; }) }
-        ];
+        const series = [];
+        if (lado !== 'externa') {
+          series.push({ nome: 'Como se vê', cor: '#151E49', valores: lista.map(function (a) { return a.notaAuto; }) });
+        }
+        if (lado !== 'auto') {
+          series.push({ nome: 'Como a veem', cor: '#F9B310', valores: lista.map(function (a) { return a.notaExterna; }) });
+        }
         alvo.innerHTML = colunas(eixos, series, { truncar: false });
         return;
       }
@@ -1060,20 +1095,23 @@ function getPainelHTML() {
         // número como posição do time.
         const umaPessoa = a.nAuto === 1;
         return '<div class="comp"><div class="comp-topo"><div class="comp-nome">' + esc(a.nome) + '</div>' +
+          '<div class="comp-selos">' +
           '<div class="selo ' + classe + '" title="' + esc(a.leitura) + '">' + seta + ' ' +
           (a.diferenca > 0 ? '+' : '') + num(a.diferenca) + '</div>' +
           (umaPessoa ? '<div class="selo selo-unico" title="A autoavaliação desta área tem uma resposta só. ' +
-            'O número não é média de time — é a opinião de uma pessoa.">1 resposta</div>' : '') + '</div>' +
-          '<div class="par"><div class="leg"><span class="leg-ic" aria-hidden="true">🪞</span>' +
+            'O número não é média de time — é a opinião de uma pessoa.">1 resposta</div>' : '') + '</div></div>' +
+          (lado === 'externa' ? '' :
+            '<div class="par"><div class="leg"><span class="leg-ic" aria-hidden="true">🪞</span>' +
             '<span class="leg-txt">Como se vê<span class="leg-n">' + a.nAuto +
             (a.nAuto === 1 ? ' pessoa' : ' pessoas') + '</span></span></div>' +
             barra(a.notaAuto, '#151E49', a.nome + ', autoavaliação: ' + num(a.notaAuto) + ', ' + a.nAuto + ' pessoas') +
-            '<div class="valor-barra">' + num(a.notaAuto) + '</div></div>' +
-          '<div class="par"><div class="leg"><span class="leg-ic" aria-hidden="true">👁️</span>' +
+            '<div class="valor-barra">' + num(a.notaAuto) + '</div></div>') +
+          (lado === 'auto' ? '' :
+            '<div class="par"><div class="leg"><span class="leg-ic" aria-hidden="true">👁️</span>' +
             '<span class="leg-txt">Como a veem<span class="leg-n">' + a.nExterno +
             ' avaliações</span></span></div>' +
             barra(a.notaExterna, corDaNota(a.notaExterna), a.nome + ', percepção externa: ' + num(a.notaExterna) + ', ' + a.nExterno + ' avaliações') +
-            '<div class="valor-barra" style="color:' + corDoTexto(a.notaExterna) + '">' + num(a.notaExterna) + '</div></div>' +
+            '<div class="valor-barra" style="color:' + corDoTexto(a.notaExterna) + '">' + num(a.notaExterna) + '</div></div>') +
           '</div>';
       }).join('') + rodapeForaDaComparacao_(lista);
       requestAnimationFrame(function () {
@@ -1088,11 +1126,16 @@ function getPainelHTML() {
       lista.forEach(function (a) { dentro[a.nome] = true; });
       const fora = dados.areas.filter(function (a) { return !dentro[a.nome]; });
       if (!fora.length) return '';
+      // Diz o que falta em cada caso, em vez de repetir a regra inteira.
+      const porque = function (a) {
+        const faltas = [];
+        if (a.nExterno < dados.minimoExterno) faltas.push('só ' + a.nExterno + ' de ' + dados.minimoExterno + ' avaliações externas');
+        if (a.nAuto < dados.minimoAuto) faltas.push('nenhuma autoavaliação');
+        return esc(a.nome) + ' (' + (faltas.join(' e ') || 'sem nota calculável') + ')';
+      };
       return '<div class="aviso" style="margin-top:16px"><strong>' + fora.length +
         (fora.length === 1 ? ' área não aparece' : ' áreas não aparecem') + ' nesta comparação</strong> — ' +
-        fora.map(function (a) { return esc(a.nome) + ' (' + a.nAuto + ' autoav., ' + a.nExterno + ' externas)'; }).join(', ') +
-        '. Falta atingir ' + dados.minimoExterno + ' avaliações externas e ' + dados.minimoAuto +
-        ' autoavaliações ao mesmo tempo.</div>';
+        fora.map(porque).join('; ') + '.</div>';
     }
 
     // ── Critérios ──
@@ -1531,6 +1574,8 @@ function getPainelHTML() {
       const larguraBarra = grupo / vivas.length;
       const mostrarRotulo = vivas.length <= 2 && larguraBarra >= 15;
       const fonteRotulo = larguraBarra < 26 ? 8.5 : larguraBarra < 40 ? 9.5 : 10.5;
+      // Contagens (pessoas, respostas) são inteiras — "7,00" só polui.
+      const fmt = (opts && opts.inteiro) ? function (v) { return String(Math.round(v)); } : num;
 
       let barras = '', rotulosValor = '', legenda = '', descricao = [];
       vivas.forEach(function (s, j) {
@@ -1544,11 +1589,11 @@ function getPainelHTML() {
                     '" width="' + Math.max(2, larguraBarra - 2).toFixed(1) + '" height="' + altura.toFixed(1) +
                     '" rx="3" fill="' + cor + '" fill-opacity="' + (s.tracejado ? '.42' : '.92') + '"' +
                     (s.tracejado ? ' stroke="' + cor + '" stroke-width="1.4" stroke-dasharray="4 3"' : '') +
-                    '><title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + num(v)) + '</title></rect>';
+                    '><title>' + esc(s.nome + ' — ' + curto(eixos[i]) + ': ' + fmt(v)) + '</title></rect>';
           if (mostrarRotulo) {
             const espacoFora = topo - 6 >= g.T + 10;
             const y = espacoFora ? topo - 6 : Math.min(topo + 14, g.y(0) - 6);
-            rotulosValor += rotuloValor_(x + larguraBarra / 2, y, num(v), fonteRotulo, 700, !espacoFora);
+            rotulosValor += rotuloValor_(x + larguraBarra / 2, y, fmt(v), fonteRotulo, 700, !espacoFora);
           }
         });
         // Série colorida por faixa (crítico→ótimo) não precisa de legenda própria:
@@ -1556,7 +1601,7 @@ function getPainelHTML() {
         // outra série junto, o leitor precisa saber qual barra é qual.
         legenda += (s.cores && vivas.length === 1) ? '' : legendaSerie_(s, s.cores ? '#F9B310' : null);
         descricao.push(s.nome + ': ' + indicesComNota_(s, n).map(function (i) {
-          return curto(eixos[i]) + ' ' + num(s.valores[i]);
+          return curto(eixos[i]) + ' ' + fmt(s.valores[i]);
         }).join(', '));
       });
 
@@ -1646,6 +1691,14 @@ function getPainelHTML() {
         '<div><label class="rotulo-campo" for="areaA">Área</label><select id="areaA">' + opcoes + '</select></div>' +
         '<div><label class="rotulo-campo" for="areaB">Comparar com</label><select id="areaB"><option value="">— nenhuma —</option>' + opcoes + '</select></div>' +
         '<div><label class="rotulo-campo" for="areaC">E com</label><select id="areaC"><option value="">— nenhuma —</option>' + opcoes + '</select></div>' +
+        '<div><label class="rotulo-campo" for="ordemDetalhe">Ordenar critérios</label>' +
+        '<select id="ordemDetalhe">' +
+        '<option value="formulario">Ordem do formulário</option>' +
+        '<option value="asc">Menor nota primeiro</option>' +
+        '<option value="desc">Maior nota primeiro</option>' +
+        '<option value="dif">Maior diferença auto × externa</option>' +
+        '<option value="alfabetica">Ordem alfabética</option>' +
+        '</select></div>' +
         '</div>' +
         '<div class="opcoes-radar">' +
         '<div class="seg" role="group" aria-label="Formato do gráfico">' +
@@ -1665,7 +1718,27 @@ function getPainelHTML() {
         .filter(function (v, i, arr) { return v && arr.indexOf(v) === i; });
       if (!escolhidas.length) { document.getElementById('detalheArea').innerHTML = ''; return; }
 
-      const criterios = (dados.detalhe[escolhidas[0]] || []).map(function (d) { return { nome: d.pergunta, secao: d.secao }; });
+      let criterios = (dados.detalhe[escolhidas[0]] || []).map(function (d) { return { nome: d.pergunta, secao: d.secao }; });
+
+      // A ordem vale para a tabela e para o gráfico — os dois precisam contar
+      // a mesma história, senão a leitura cruzada engana.
+      const ordemC = (document.getElementById('ordemDetalhe') || {}).value || 'formulario';
+      if (ordemC !== 'formulario') {
+        const daPrimeira = function (nome) {
+          return (dados.detalhe[escolhidas[0]] || []).filter(function (x) { return x.pergunta === nome; })[0] || {};
+        };
+        criterios = criterios.slice().sort(function (a, b) {
+          if (ordemC === 'alfabetica') return a.nome.localeCompare(b.nome, 'pt-BR');
+          const da = daPrimeira(a.nome), db = daPrimeira(b.nome);
+          if (ordemC === 'dif') {
+            return Math.abs(db.diferenca === null ? -1 : db.diferenca) - Math.abs(da.diferenca === null ? -1 : da.diferenca);
+          }
+          const va = da.externa, vb = db.externa;
+          if (va === null) return 1;
+          if (vb === null) return -1;
+          return ordemC === 'asc' ? va - vb : vb - va;
+        });
+      }
 
       const cabecalho = '<tr><th>Critério</th>' + escolhidas.map(function (a) {
         return '<th style="text-align:right">' + esc(a) + '</th>';
@@ -1840,12 +1913,31 @@ function getPainelHTML() {
       const top = Object.keys(contagem).map(function (p) { return { p: p, n: contagem[p] }; })
         .sort(function (a, b) { return b.n - a.n; }).slice(0, 18);
 
+      // Cor e tamanho carregam a frequência, em vez de serem enfeite: o termo
+      // mais citado precisa saltar antes de o olho ler o número.
+      // Tom único (navy) de propósito — a rampa vermelho→verde significa NOTA
+      // no resto do painel e não pode virar "citado muitas vezes" aqui.
+      const maior = top.length ? top[0].n : 1;
+      const menor = top.length ? top[top.length - 1].n : 1;
+      const intensidade = function (n) {
+        return maior === menor ? 1 : (n - menor) / (maior - menor);   // 0..1
+      };
+
       document.getElementById('blocoTermos').innerHTML = top.length < 3 ? '' :
         '<div class="bloco-sub" style="margin-bottom:9px"><strong>Termos mais citados</strong> — clique para filtrar. ' +
-        'Contagem simples de palavras, uma vez por comentário.</div><div class="termos">' +
+        'Palavra contada uma vez por comentário, em ' + lista.length +
+        (lista.length === 1 ? ' comentário' : ' comentários') + '. Quanto mais forte, mais citada.</div>' +
+        '<div class="termos">' +
         top.map(function (t) {
-          return '<button class="termo" onclick="filtrarPorTermo(\\'' + esc(t.p) + '\\')">' +
-                 esc(t.p) + '<span class="qtd">' + t.n + '</span></button>';
+          const f = intensidade(t.n);
+          const fundo = 'rgba(21,30,73,' + (0.05 + f * 0.82).toFixed(3) + ')';
+          const cor = f > 0.45 ? '#fff' : 'var(--navy)';
+          const tamanho = (12.5 + f * 3.5).toFixed(1);
+          const peso = f > 0.55 ? 700 : 600;
+          return '<button class="termo" style="background:' + fundo + ';color:' + cor +
+                 ';border-color:transparent;font-size:' + tamanho + 'px;font-weight:' + peso + '" ' +
+                 'onclick="filtrarPorTermo(\\'' + esc(t.p) + '\\')">' +
+                 esc(t.p) + '<span class="qtd" style="color:inherit;opacity:.7">' + t.n + '</span></button>';
         }).join('') + '</div>';
     }
     function filtrarPorTermo(termo) {
@@ -1924,6 +2016,10 @@ function getPainelHTML() {
       document.getElementById('ordemAreas').addEventListener('change', desenharRanking);
       desenharRanking();
       desenharParticipacao();
+      ['ordemComparacao','ladoComparacao'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', desenharComparacao);
+      });
       desenharComparacao();
       desenharCriterios();
 
@@ -1933,7 +2029,7 @@ function getPainelHTML() {
       });
       desenharPorPergunta();
 
-      ['areaA','areaB','areaC','radarEmpresa','radarAuto'].forEach(function (id) {
+      ['areaA','areaB','areaC','ordemDetalhe','radarEmpresa','radarAuto'].forEach(function (id) {
         document.getElementById(id).addEventListener('change', desenharDetalhe);
       });
       desenharDetalhe();

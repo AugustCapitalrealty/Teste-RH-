@@ -8,6 +8,11 @@ function doGet(e) {
   const pagina = (e && e.parameter && e.parameter.page) || '';
   if (pagina === 'painel') return servirPainel_();
 
+  // Depois do prazo, nem chega a montar o formulário.
+  if (pesquisaEncerrada_()) {
+    return HtmlService.createHtmlOutput(getEncerradaHTML());
+  }
+
   const html = HtmlService.createHtmlOutput(getFormHTML());
   html.setWidth(1000);
   html.setHeight(800);
@@ -49,9 +54,63 @@ function submitForm(data) {
     salvarResposta(data);
     return { success: true, message: "Resposta salva com sucesso!" };
   } catch (error) {
+    // Quem ficou com a página aberta e enviou depois do prazo precisa de uma
+    // resposta específica, não de uma mensagem genérica de erro.
+    if (String(error && error.message) === 'PESQUISA_ENCERRADA') {
+      return { success: false, encerrada: true, prazo: encerramentoLegivel_() };
+    }
     Logger.log("Erro ao salvar resposta: " + error);
     return { success: false, error: error.toString() };
   }
+}
+
+/** Data/hora de encerramento para o formulário exibir. '' = sem prazo. */
+function prazoDaPesquisa() {
+  return encerramentoLegivel_();
+}
+
+/** Página mostrada quando alguém abre o link depois do prazo */
+function getEncerradaHTML() {
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pesquisa encerrada — Capital Realty</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family:'Montserrat',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+      background:#F6F7F9; color:#151E49; min-height:100vh;
+      display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .caixa {
+      background:#fff; border:1px solid rgba(21,30,73,.08); border-radius:22px;
+      box-shadow:0 1px 2px rgba(21,30,73,.05), 0 12px 32px rgba(21,30,73,.08);
+      padding:44px 38px; max-width:480px; text-align:center;
+    }
+    .emoji { font-size:38px; line-height:1; margin-bottom:18px; }
+    h1 { font-size:21px; font-weight:700; letter-spacing:-.022em; margin-bottom:12px; }
+    p { font-size:14.5px; line-height:1.65; color:#55627A; }
+    p + p { margin-top:12px; }
+    .prazo { font-weight:600; color:#151E49; }
+    .marca { margin-top:26px; font-size:11.5px; color:#8A94A6; letter-spacing:.04em; text-transform:uppercase; }
+  </style>
+</head>
+<body>
+  <main class="caixa">
+    <div class="emoji" aria-hidden="true">🔒</div>
+    <h1>Pesquisa encerrada</h1>
+    <p>O prazo para responder terminou em <span class="prazo">${encerramentoLegivel_()}</span>.</p>
+    <p>Obrigado a todos que participaram. Os resultados estão sendo consolidados
+       e serão compartilhados pelo RH.</p>
+    <div class="marca">Capital Realty</div>
+  </main>
+</body>
+</html>`;
 }
 
 /**
@@ -226,6 +285,7 @@ function getFormHTML() {
     }
     .badge-green { background: #e8f7ee; color: #1e8a4c; }
     .badge-blue { background: var(--navy-10); color: var(--navy); }
+    .badge-prazo { background: rgba(249,179,16,.16); color: #8A6100; }
 
     .info-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 20px 0; text-align: left; }
     .info-card { background: var(--bg); border: 1px solid var(--hairline); border-radius: 14px; padding: 14px 16px; }
@@ -421,12 +481,21 @@ function getFormHTML() {
         <h2>✅ Você já respondeu esta pesquisa</h2>
       </div>
 
+      <div id="stageClosed" class="already-done hidden">
+        <h2>🔒 Pesquisa encerrada</h2>
+        <p style="margin-top:10px;font-size:14px;color:var(--muted-fg);line-height:1.6">
+          O prazo terminou em <strong class="prazo-encerrado"></strong> e esta resposta
+          não pôde ser registrada. Obrigado pelo interesse em participar.
+        </p>
+      </div>
+
       <!-- INTRO -->
       <div id="stageIntro" class="stage-intro">
         <h1>📊 Pesquisa RH 360º</h1>
         <div class="badges">
           <span class="badge badge-green" title="Impossível associar respostas a pessoas. Os resultados são sempre analisados de forma agregada, nunca individual.">🛡️ Pesquisa Anônima</span>
           <span class="badge badge-blue">🏢 Capital Realty</span>
+          ${ENCERRAMENTO ? '<span class="badge badge-prazo" title="Depois deste horário o formulário não aceita mais respostas.">⏰ Responda até ' + encerramentoLegivel_() + '</span>' : ''}
         </div>
 
         <h2>Pesquisa de Satisfação Interdepartamental</h2>
@@ -892,7 +961,26 @@ function getFormHTML() {
 
       const data = { pesquisa_id: 'pesquisa_360', avaliacoes: avaliacoes, timestamp: new Date().toISOString() };
 
-      google.script.run.withSuccessHandler(() => {
+      google.script.run.withSuccessHandler((r) => {
+        // O servidor devolve {success:false} quando recusa — sem checar isto,
+        // uma resposta rejeitada mostraria a tela de "obrigado" mesmo assim.
+        if (r && r.success === false) {
+          btn.disabled = false;
+          btn.textContent = 'Confirmar envio 🔒';
+          closeModal('confirmModal');
+          if (r.encerrada) {
+            document.getElementById('stageSurvey').classList.add('hidden');
+            document.getElementById('stageIntro').classList.add('hidden');
+            const tela = document.getElementById('stageClosed');
+            tela.querySelector('.prazo-encerrado').textContent = r.prazo || '';
+            tela.classList.remove('hidden');
+            clearDraft();
+            window.scrollTo(0, 0);
+          } else {
+            alert('Não foi possível salvar: ' + (r.error || 'erro desconhecido'));
+          }
+          return;
+        }
         if (BLOQUEAR_REENVIO) safeStorageSet(STORAGE_DONE_KEY, '1');
         clearDraft();
         closeModal('confirmModal');

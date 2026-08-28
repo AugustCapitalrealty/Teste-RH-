@@ -60,6 +60,42 @@ const TOTAL_COLABORADORES = 55;
 const LIMITE_DESALINHAMENTO = 0.3;
 
 /**
+ * ENCERRAMENTO DA PESQUISA — depois deste instante o formulário não aceita
+ * mais respostas. Horário de Brasília (America/Sao_Paulo).
+ *
+ * Formato: 'AAAA-MM-DD HH:MM'.  Deixe vazio ('') para manter a pesquisa aberta
+ * por tempo indeterminado.
+ *
+ * A trava é aplicada NO SERVIDOR, em salvarResposta(). O relógio do
+ * computador de quem responde não interfere — quem deixou a página aberta e
+ * enviar depois do horário recebe recusa.
+ */
+const ENCERRAMENTO = '2026-08-28 23:59';
+
+/** true se a pesquisa já passou do horário de encerramento */
+function pesquisaEncerrada_() {
+  if (!ENCERRAMENTO) return false;
+  return agoraEmBrasilia_() > ENCERRAMENTO;
+}
+
+/**
+ * "Agora" no fuso de Brasília, no mesmo formato de ENCERRAMENTO.
+ * Comparar as duas strings funciona porque o formato AAAA-MM-DD HH:MM
+ * é ordenável lexicograficamente — e evita erro de fuso ao construir Date.
+ */
+function agoraEmBrasilia_() {
+  return Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd HH:mm');
+}
+
+/** Data/hora do encerramento em formato legível, para mostrar na tela */
+function encerramentoLegivel_() {
+  if (!ENCERRAMENTO) return '';
+  const partes = ENCERRAMENTO.split(' ');
+  const d = partes[0].split('-');
+  return d[2] + '/' + d[1] + '/' + d[0] + ' às ' + partes[1];
+}
+
+/**
  * Marca que identifica respostas fictícias criadas por inserirDadosDeTeste().
  * É por ela que apagarDadosDeTeste() distingue teste de resposta real —
  * não mude sem apagar os dados de teste antes.
@@ -119,6 +155,12 @@ const CRITERIOS = PERGUNTAS.filter(function (p) { return p.tipo === 'rating'; })
  */
 function salvarResposta(dados) {
   try {
+    // Trava de encerramento. Fica aqui, e não só na tela, porque a página pode
+    // estar aberta desde antes do prazo e o relógio do cliente não é confiável.
+    if (pesquisaEncerrada_()) {
+      throw new Error('PESQUISA_ENCERRADA');
+    }
+
     const planilha = SpreadsheetApp.openById(ID_PLANILHA);
 
     let aba = planilha.getSheetByName(ABA_RESPOSTAS);

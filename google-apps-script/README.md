@@ -528,6 +528,50 @@ Navegação para trás disponível em todas as etapas (o botão **← Anterior**
 
 ---
 
+## ⏰ Encerramento da pesquisa
+
+O prazo fica numa constante no `sheets.gs`:
+
+```js
+const ENCERRAMENTO = '2026-08-28 23:59';   // horário de Brasília
+```
+
+Depois desse instante:
+
+- quem abre o link vê uma página de **"Pesquisa encerrada"**, não o formulário;
+- quem já estava com a página aberta e clica em enviar **tem a resposta recusada**, com a data do prazo na tela;
+- o **painel do RH continua funcionando** normalmente.
+
+A trava é aplicada **no servidor**, dentro de `salvarResposta()`. O relógio do computador de quem responde não interfere.
+
+Enquanto está aberta, o formulário mostra o prazo na tela inicial: *"⏰ Responda até 28/08/2026 às 23:59"*.
+
+Para **manter aberta por tempo indeterminado**, deixe vazio: `const ENCERRAMENTO = '';`
+Para **estender o prazo**, mude a data e crie uma nova versão da implantação.
+
+> ⚠️ Mudar essa constante exige **nova versão da implantação** para valer para o público — como qualquer mudança que afete o formulário.
+
+---
+
+## 🧪 Testes
+
+As suítes ficam em `testes/` e rodam no Node, sem tocar a planilha real:
+
+```bash
+bash testes/rodar-tudo.sh
+```
+
+| Arquivo | O que cobre |
+|---|---|
+| `testes/dados.test.js` | Cálculo dos indicadores, cortes de anonimato, separação teste × real, sincronia formulário ↔ planilha |
+| `testes/painel.test.js` | Painel completo num navegador de verdade: senha, ordenações, filtros, gráficos, comentários |
+| `testes/prazo.test.js` | Encerramento: antes, no limite e depois do prazo |
+| `testes/_ambiente.js` | Ambiente falso do Apps Script (planilha em memória, relógio controlável) |
+
+Rode antes de colar o código no editor do Apps Script — pega erro de sintaxe e regressão de comportamento sem precisar publicar.
+
+---
+
 ## 🛟 Como os dados de teste são separados dos reais
 
 `inserirDadosDeTeste()` grava, em toda avaliação fictícia, comentários que começam com **`Resposta de teste (`**. As linhas de nota da mesma avaliação compartilham o **Avaliação ID** — então esse ID identifica o bloco inteiro, incluindo as notas, que sozinhas seriam indistinguíveis de uma resposta real.
