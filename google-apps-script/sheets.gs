@@ -11,6 +11,9 @@
  *                             e COMENTARIOS a partir da aba Respostas.
  *   inserirDadosDeTeste()   → opcional, popula respostas fictícias para teste.
  *   apagarDadosDeTeste()    → remove APENAS as respostas fictícias, preservando as reais.
+ *   verificarConfiguracao() → mostra no Log o que está valendo agora (prazo,
+ *                             mínimos, dados de teste). Use quando "colei e
+ *                             salvei mas nada mudou".
  *
  * AUTOMAÇÃO (opcional — dispensa rodar gerarIndicadores() na mão):
  *   ativarAtualizacaoAutomatica()    → 1x. Passa a atualizar sozinho todo dia.
@@ -234,6 +237,77 @@ function criarCabecalhoRespostas_(aba) {
   aba.appendRow(cabecalho);
   formatarCabecalho_(aba, cabecalho.length, COR_NAVY);
   aba.setFrozenRows(1);
+}
+
+
+/**
+ * DIAGNÓSTICO — mostra no Log o que está valendo AGORA no código salvo
+ * e na planilha. Use quando "colei e salvei mas nada mudou".
+ *
+ * Atenção à distinção que essa função ajuda a enxergar:
+ *   • O que ela mostra é o CÓDIGO SALVO (Ctrl+S).
+ *   • O que o público vê é o CÓDIGO IMPLANTADO (Nova versão).
+ * Se o log aqui mostrar o valor novo e a URL continuar antiga, o que falta
+ * é criar uma nova versão da implantação.
+ */
+function verificarConfiguracao() {
+  const linhas = [];
+  linhas.push('═══ CÓDIGO SALVO NO EDITOR ═══');
+  linhas.push('Encerramento da pesquisa .. ' + (ENCERRAMENTO ? encerramentoLegivel_() : 'sem prazo (aberta)'));
+  linhas.push('Pesquisa está encerrada? .. ' + (pesquisaEncerrada_() ? 'SIM, não aceita mais respostas' : 'não, aceitando respostas'));
+  linhas.push('Agora (Brasília) .......... ' + agoraEmBrasilia_());
+  linhas.push('Mínimo externo ............ ' + MINIMO_EXTERNO);
+  linhas.push('Mínimo autoavaliação ...... ' + MINIMO_AUTOAVALIACAO);
+  linhas.push('Total de colaboradores .... ' + TOTAL_COLABORADORES);
+
+  // BLOQUEAR_REENVIO vive dentro do HTML do formulário (main.gs)
+  try {
+    const form = getFormHTML();
+    linhas.push('Trava de reenvio .......... ' + (form.indexOf('BLOQUEAR_REENVIO = true') !== -1 ? 'LIGADA' : 'desligada'));
+    linhas.push('Aviso de prazo no form .... ' + (form.indexOf('Responda até') !== -1 ? 'presente' : 'AUSENTE'));
+  } catch (e) {
+    linhas.push('Trava de reenvio .......... não deu para ler o main.gs (' + e + ')');
+  }
+
+  // Painel: só existe se painel.gs estiver colado
+  try {
+    linhas.push('Painel do RH .............. ' + (typeof getPainelHTML === 'function' ? 'painel.gs presente' : 'AUSENTE'));
+    linhas.push('Senha do painel ........... ' +
+      (PropertiesService.getScriptProperties().getProperty(CHAVE_SENHA_PAINEL) ? 'configurada' : 'NÃO configurada'));
+  } catch (e) {
+    linhas.push('Painel do RH .............. AUSENTE — cole o painel.gs');
+  }
+
+  linhas.push('');
+  linhas.push('═══ PLANILHA ═══');
+  try {
+    const aba = SpreadsheetApp.openById(ID_PLANILHA).getSheetByName(ABA_RESPOSTAS);
+    if (!aba) {
+      linhas.push('Aba Respostas ............. NÃO EXISTE — rode inicializarPlanilha()');
+    } else {
+      const dados = aba.getDataRange().getValues();
+      const idsTeste = {}, autos = {};
+      for (let i = 1; i < dados.length; i++) {
+        if (String(dados[i][6] || '').indexOf(MARCA_TESTE) === 0) idsTeste[dados[i][1]] = true;
+        if (dados[i][3] === 'Sim') autos[dados[i][1]] = true;   // 1 autoavaliação = 1 envio
+      }
+      const qtdTeste = Object.keys(idsTeste).length;
+
+      linhas.push('Linhas de resposta ........ ' + (dados.length - 1));
+      linhas.push('Pessoas que responderam ... ' + Object.keys(autos).length + ' de ' + TOTAL_COLABORADORES);
+      linhas.push('Dados de teste ............ ' + (qtdTeste ? qtdTeste + ' avaliações fictícias — rode apagarDadosDeTeste()' : 'nenhum'));
+    }
+  } catch (e) {
+    linhas.push('Planilha .................. ERRO ao abrir: ' + e);
+  }
+
+  linhas.push('');
+  linhas.push('⚠️ Isto é o CÓDIGO SALVO. Para o público ver, é preciso');
+  linhas.push('   Implantar → Gerenciar implantações → ✏️ → Nova versão.');
+
+  const texto = linhas.join('\n');
+  Logger.log(texto);
+  return texto;
 }
 
 

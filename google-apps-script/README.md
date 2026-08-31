@@ -113,6 +113,27 @@ Sempre que editar qualquer `.gs`: salve (**Ctrl+S**) → **Implantar** → **Ger
 | `inserirDadosDeTeste()` | Opcional, para testar | Cria 52 respondentes fictícios (4 por área) para você ver os indicadores funcionando. |
 | `apagarDadosDeTeste()` | Depois de testar | Remove **apenas** as respostas fictícias. As respostas reais ficam intactas. Pode rodar com a pesquisa no ar. |
 | `apagarTODASasRespostas()` | Só para zerar um ciclo | ⚠️ Apaga **tudo**, real inclusive. Protegida: só funciona depois de você trocar `CONFIRMO` para `true` no código. |
+| **`verificarConfiguracao()`** 🔎 | Quando algo "não mudou" | Mostra no Log o prazo, os mínimos, se há dados de teste e quantas pessoas responderam. Não altera nada. |
+
+### 🔎 "Colei, salvei, e não mudou nada"
+
+Quase sempre é a diferença entre **salvar** e **implantar**:
+
+| | Vale a partir de |
+|---|---|
+| **Ctrl+S** (salvar) | As funções do menu *Executar* — `gerarIndicadores()`, `verificarConfiguracao()`, etc. |
+| **Nova versão da implantação** | O que o **público** vê na URL: formulário e painel |
+
+Ou seja: salvar muda o que **você** executa; implantar muda o que **os outros** veem.
+
+Para descobrir em qual camada está o problema:
+
+1. Rode **`verificarConfiguracao()`** e olhe o Log.
+   - Se os valores estiverem **errados** → o código não foi colado/salvo direito. Confira se colou nos três arquivos.
+   - Se os valores estiverem **certos** mas a URL continua antiga → falta criar a nova versão.
+2. Para criar: *Implantar → **Gerenciar implantações** → ✏️ (lápis) → em **Versão**, escolher **Nova versão** → **Implantar***.
+   - ❗ Não adianta *Nova implantação*: isso cria uma **URL diferente**. Você quer editar a que já existe.
+3. Recarregue a URL com **Ctrl+Shift+R** (o navegador guarda a página em cache).
 
 **Funções de automação** (opcional — dispensam rodar `gerarIndicadores()` na mão):
 
