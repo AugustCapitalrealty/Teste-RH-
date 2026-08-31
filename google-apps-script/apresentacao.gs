@@ -10,7 +10,7 @@ const PRH_CONFIG = Object.freeze({
   locale: 'pt-BR',
   timezone: 'America/Sao_Paulo',
   expectedRatio: 16 / 9,
-  slideCount: 8,
+  slideCount: 7,
   maxComments: 4
 });
 
@@ -96,7 +96,7 @@ function PRH_montarModeloPlanejamentoGestao_(registros) {
       auto: auto,
       diferenca: externa !== null && auto !== null ? PRH_arredondar_(auto - externa) : null,
       nExterno: liberaExterno ? ext.qtd : null,
-      benchmark: benchmarks[p.nome] === undefined ? null : benchmarks[p.nome]
+      benchmark: benchmarks.porPergunta[p.nome] === undefined ? null : benchmarks.porPergunta[p.nome]
     };
   });
 
@@ -119,11 +119,14 @@ function PRH_montarModeloPlanejamentoGestao_(registros) {
     notaExterna: notaExterna,
     notaAuto: notaAuto,
     diferenca: diferenca,
+    notaEmpresa: benchmarks.geral,
+    nEmpresa: benchmarks.avaliacoes,
+    // Quanto a área está acima (+) ou abaixo (−) da média da empresa.
+    contraEmpresa: notaExterna !== null && benchmarks.geral !== null
+      ? PRH_arredondar_(notaExterna - benchmarks.geral) : null,
     criterios: criterios,
-    comentarios: comentarios,
-    fatos: []
+    comentarios: comentarios
   };
-  modelo.fatos = PRH_montarFatos_(modelo);
   return modelo;
 }
 
@@ -153,14 +156,27 @@ function PRH_calcularBenchmarksSeguros_(registros) {
     acc[r.pergunta].ids[String(r.area) + '|' + String(r.idAvaliacao)] = true;
   });
 
-  const saida = {};
+  const porPergunta = {};
+  let somaGeral = 0, qtdGeral = 0;
+  const avaliacoesGerais = {};
   Object.keys(acc).forEach(function (pergunta) {
     const d = acc[pergunta];
     if (Object.keys(d.ids).length >= MINIMO_EXTERNO && d.qtd > 0) {
-      saida[pergunta] = PRH_arredondar_(d.soma / d.qtd);
+      porPergunta[pergunta] = PRH_arredondar_(d.soma / d.qtd);
+      somaGeral += d.soma;
+      qtdGeral += d.qtd;
+      Object.keys(d.ids).forEach(function (id) { avaliacoesGerais[id] = true; });
     }
   });
-  return saida;
+
+  return {
+    porPergunta: porPergunta,
+    // Média da empresa: todas as notas externas das áreas elegíveis, juntas.
+    // É ponderada por avaliação, não por área — uma área muito avaliada pesa
+    // mais. É a mesma conta que a pessoa faria somando a coluna inteira.
+    geral: qtdGeral > 0 ? PRH_arredondar_(somaGeral / qtdGeral) : null,
+    avaliacoes: Object.keys(avaliacoesGerais).length
+  };
 }
 
 function PRH_selecionarComentarios_(registros, liberaExterno, liberaAuto) {
@@ -196,36 +212,9 @@ function PRH_anonimizarComentario_(texto) {
   return PRH_limitarTexto_(t, 220);
 }
 
-function PRH_montarFatos_(m) {
-  const fatos = [];
-  if (m.liberaExterno) {
-    fatos.push('A percepção externa registra média ' + PRH_num_(m.notaExterna) + ' em escala de 1 a 5, com ' + m.nExterno + ' avaliações elegíveis.');
-  } else {
-    fatos.push('A percepção externa permanece oculta: ' + m.nExterno + ' de ' + m.minimoExterno + ' avaliações mínimas.');
-  }
-  if (m.liberaAuto) {
-    fatos.push('A autoavaliação registra média ' + PRH_num_(m.notaAuto) + ', sustentada por ' + m.nAuto + ' resposta' + (m.nAuto === 1 ? '' : 's') + '.');
-  } else {
-    fatos.push('A autoavaliação permanece oculta: ' + m.nAuto + ' de ' + m.minimoAuto + ' respostas mínimas.');
-  }
-  if (m.diferenca !== null) {
-    fatos.push('A diferença matemática (auto − externa) é ' + PRH_numSinal_(m.diferenca) + ' ponto' + (Math.abs(m.diferenca) === 1 ? '' : 's') + '.');
-  } else {
-    fatos.push('A comparação auto × externa não é exibida enquanto um dos lados estiver abaixo do corte.');
-  }
-  const validos = m.criterios.filter(function (c) { return c.externa !== null; }).sort(function (a, b) { return b.externa - a.externa; });
-  if (validos.length) {
-    fatos.push('Entre os sete critérios, a maior média externa é ' + validos[0].nome + ' (' + PRH_num_(validos[0].externa) + ') e a menor é ' + validos[validos.length - 1].nome + ' (' + PRH_num_(validos[validos.length - 1].externa) + ').');
-  } else {
-    fatos.push('As médias por critério permanecem ocultas pelo mesmo corte da percepção externa.');
-  }
-  return fatos.slice(0, 4);
-}
-
 function PRH_definirRoteiro_() {
   return [
     { id: 'capa', titulo: 'Pesquisa de satisfação interdepartamental' },
-    { id: 'executiva', titulo: 'Leitura executiva' },
     { id: 'kpis', titulo: 'Indicadores-chave' },
     { id: 'comparacao', titulo: 'Autoavaliação × percepção externa' },
     { id: 'criterios', titulo: 'Os sete critérios' },
@@ -271,8 +260,7 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
   if (id === 'capa') return PRH_slideCapa_(slide, W, H, m);
   PRH_fundoClaro_(slide);
   PRH_header_(slide, W, PRH_tituloPorId_(id), m.area + ' · Atualizado em ' + m.geradoEm);
-  if (id === 'executiva') PRH_slideExecutiva_(slide, W, H, m);
-  else if (id === 'kpis') PRH_slideKpis_(slide, W, H, m);
+  if (id === 'kpis') PRH_slideKpis_(slide, W, H, m);
   else if (id === 'comparacao') PRH_slideComparacao_(slide, W, H, m);
   else if (id === 'criterios') PRH_slideCriterios_(slide, W, H, m);
   else if (id === 'voz') PRH_slideVoz_(slide, W, H, m);
@@ -284,7 +272,7 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
 
 function PRH_tituloPorId_(id) {
   const mapa = {
-    executiva: 'LEITURA EXECUTIVA', kpis: 'INDICADORES-CHAVE',
+    kpis: 'INDICADORES-CHAVE',
     comparacao: 'AUTOAVALIAÇÃO × PERCEPÇÃO EXTERNA', criterios: 'OS SETE CRITÉRIOS',
     voz: 'VOZ QUALITATIVA ANONIMIZADA', acao: 'PLANO DE AÇÃO PARA VALIDAÇÃO',
     metodologia: 'METODOLOGIA E ENCERRAMENTO'
@@ -306,16 +294,6 @@ function PRH_slideCapa_(slide, W, H, m) {
   PRH_texto_(slide, 44, H - 38, W - 88, 14, 'CAPITAL REALTY · USO INTERNO', { fs: 7, min: 7, bold: true, color: '#CBD5E1', family: PRH_DS.fonts.title, oneLine: true });
 }
 
-function PRH_slideExecutiva_(slide, W, H, m) {
-  const x = 30, y = 82, w = W - 60, gap = 12, cardH = 62;
-  m.fatos.forEach(function (fato, i) {
-    const cor = i === 0 ? PRH_DS.colors.brandLight : (i === 2 ? PRH_DS.colors.orange : PRH_DS.colors.brandMed);
-    PRH_card_(slide, x, y + i * (cardH + gap), w, cardH, cor);
-    PRH_pill_(slide, x + 15, y + 14 + i * (cardH + gap), 86, 18, 'FATO ' + (i + 1), cor, '#FFFFFF');
-    PRH_texto_(slide, x + 115, y + 9 + i * (cardH + gap), w - 132, 45, fato, { fs: 10.5, min: 8, color: PRH_DS.colors.text, family: PRH_DS.fonts.body, spacing: 118, middle: true });
-  });
-}
-
 function PRH_slideKpis_(slide, W, H, m) {
   const cards = [
     { l: 'AVALIAÇÕES EXTERNAS', v: String(m.nExterno), n: 'corte: ' + m.minimoExterno, c: PRH_DS.colors.brandLight },
@@ -326,26 +304,37 @@ function PRH_slideKpis_(slide, W, H, m) {
   ];
   const gap = 12, x = 30, y = 92, cw = (W - 60 - gap * 4) / 5;
   cards.forEach(function (d, i) { PRH_kpi_(slide, x + i * (cw + gap), y, cw, 102, d); });
-  PRH_card_(slide, 30, 218, W - 60, 112, PRH_DS.colors.brandMed);
-  PRH_texto_(slide, 47, 231, 250, 18, 'REGRA DE LEITURA', { fs: 10, min: 9, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true });
-  const regra = '“N/D” significa dado não divulgado. Zero nunca substitui ausência. Contagens podem ser mostradas para evidenciar o corte; médias, comparações e textos só entram quando a respectiva origem alcança o mínimo.';
-  PRH_texto_(slide, 47, 258, W - 94, 54, regra, { fs: 11, min: 9, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 122 });
+  // A metade de baixo ficou livre de propósito — a definir.
 }
 
 function PRH_slideComparacao_(slide, W, H, m) {
-  const x = 48, y = 102, chartW = 430, rowH = 72;
+  const x = 48, chartW = 430;
   PRH_card_(slide, 30, 82, 480, 244, PRH_DS.colors.brandLight);
   PRH_texto_(slide, x, 94, 300, 17, 'MÉDIAS GERAIS · ESCALA 1–5', { fs: 9, min: 8, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true });
-  PRH_barraNota_(slide, x, y + 28, chartW, rowH, 'Percepção externa', m.notaExterna, PRH_DS.colors.brandMed, m.nExterno);
-  PRH_barraNota_(slide, x, y + 111, chartW, rowH, 'Autoavaliação', m.notaAuto, PRH_DS.colors.brandLight, m.nAuto);
+  PRH_barraNota_(slide, x, 118, chartW, 'Percepção externa', m.notaExterna, PRH_DS.colors.brandMed, m.nExterno);
+  PRH_barraNota_(slide, x, 188, chartW, 'Autoavaliação', m.notaAuto, PRH_DS.colors.brandLight, m.nAuto);
+  PRH_barraNota_(slide, x, 258, chartW, 'Média da empresa', m.notaEmpresa, PRH_DS.colors.muted, m.nEmpresa);
 
   PRH_card_(slide, 526, 82, W - 556, 244, PRH_DS.colors.orange);
   PRH_texto_(slide, 542, 98, W - 588, 18, 'DIFERENÇA', { fs: 9, min: 8, bold: true, color: PRH_DS.colors.orange, family: PRH_DS.fonts.title, oneLine: true });
   PRH_texto_(slide, 542, 126, W - 588, 50, m.diferenca === null ? 'N/D' : PRH_numSinal_(m.diferenca), { fs: 28, min: 20, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, oneLine: true });
-  PRH_texto_(slide, 542, 183, W - 588, 105, m.diferenca === null
+  PRH_texto_(slide, 542, 186, W - 588, 62, m.diferenca === null
     ? 'Comparação retida até ambos os lados alcançarem seus cortes.'
-    : 'Cálculo automático: média da autoavaliação menos média da percepção externa. A definição de causa e impacto exige validação humana.',
+    : PRH_frasePosicao_('A autoavaliação está', m.diferenca, 'a percepção externa'),
     { fs: 9.5, min: 7.5, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 118 });
+  PRH_texto_(slide, 542, 254, W - 588, 62, m.contraEmpresa === null
+    ? 'Comparação com a empresa retida pelo mesmo corte.'
+    : PRH_frasePosicao_('A área está', m.contraEmpresa, 'a média da empresa'),
+    { fs: 9.5, min: 7.5, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 118 });
+}
+
+/** "A área está 0,12 ponto acima da média da empresa." */
+function PRH_frasePosicao_(sujeito, delta, referencia) {
+  const d = Math.abs(delta);
+  if (d < 0.005) return sujeito + ' no mesmo nível que ' + referencia + '.';
+  const de = referencia.indexOf('a ') === 0 ? 'd' + referencia : 'de ' + referencia;
+  return sujeito + ' ' + PRH_num_(d) + ' ponto' + (d > 1 ? 's' : '') +
+    (delta > 0 ? ' acima ' : ' abaixo ') + de + '.';
 }
 
 function PRH_slideCriterios_(slide, W, H, m) {
@@ -445,10 +434,12 @@ function PRH_kpi_(slide, x, y, w, h, d) {
   PRH_texto_(slide, x + 12, y + 77, w - 20, 14, d.n, { fs: 7, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
 }
 
-function PRH_barraNota_(slide, x, y, w, h, label, valor, cor, n) {
-  PRH_texto_(slide, x, y, 180, 18, label, { fs: 10, min: 8, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, oneLine: true });
-  PRH_texto_(slide, x + w - 90, y, 90, 18, valor === null ? 'N/D' : PRH_num_(valor) + ' · n=' + n, { fs: 9, min: 7, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, align: 'right' });
-  PRH_escalaBarra_(slide, x, y + 25, w, 18, valor, cor);
+function PRH_barraNota_(slide, x, y, w, label, valor, cor, n) {
+  PRH_texto_(slide, x, y, 200, 16, label, { fs: 10, min: 8, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, oneLine: true });
+  const quantas = Number(n) === 1 ? '1 resposta' : PRH_inteiro_(n) + ' respostas';
+  PRH_texto_(slide, x, y + 16, 200, 13, quantas, { fs: 7.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+  PRH_texto_(slide, x + w - 110, y, 110, 24, valor === null ? 'N/D' : PRH_num_(valor), { fs: 15, min: 11, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, align: 'right' });
+  PRH_escalaBarra_(slide, x, y + 33, w, 16, valor, cor);
 }
 
 function PRH_escalaBarra_(slide, x, y, w, h, valor, cor) {
@@ -529,6 +520,8 @@ function PRH_logo_(slide, id, x, y, w, h, negativo) {
 
 function PRH_arredondar_(v) { return Math.round(Number(v) * 100) / 100; }
 function PRH_num_(v) { return Number(v).toLocaleString(PRH_CONFIG.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+/** Contagem: nunca leva casa decimal — "12 respostas", não "12,00 respostas". */
+function PRH_inteiro_(v) { return Number(v).toLocaleString(PRH_CONFIG.locale, { maximumFractionDigits: 0 }); }
 function PRH_numOuND_(v) { return v === null || v === undefined ? 'N/D' : PRH_num_(v); }
 function PRH_numSinal_(v) { return (Number(v) > 0 ? '+' : '') + PRH_num_(v); }
 function PRH_limitarTexto_(t, max) { return t.length <= max ? t : t.slice(0, max - 1).replace(/\s+\S*$/, '') + '…'; }
