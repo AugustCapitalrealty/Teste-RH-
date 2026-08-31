@@ -307,7 +307,7 @@ const PRH_COMENT_GAP = 6;
  * fonte de texto (0,52 de avanço médio) e entrelinha de 116%.
  */
 function PRH_alturaComentario_(texto) {
-  const largura = 720 - 60 - 182 - 14;   // slide − margens − colunas fixas − respiro
+  const largura = 720 - 60 - 62 - 14;   // slide − margens − coluna do número − respiro
   const porLinha = Math.max(20, Math.floor(largura / (9.2 * 0.52)));
   const linhas = Math.max(1, Math.ceil((String(texto).length + 2) / porLinha));
   return Math.max(40, Math.round(linhas * 9.2 * 1.37) + 14);
@@ -650,13 +650,7 @@ function PRH_slideComentarios_(slide, W, H, lista, cor, pagina) {
     // A caixa do número precisa comportar dois dígitos: em 26pt o "14" não
     // cabia nem no menor corpo e quebrava em duas linhas.
     PRH_texto_(slide, x + 10, ry, 34, linhaH, PRH_inteiro_(inicio + i + 1), { fs: 15, min: 10, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, middle: true });
-    PRH_texto_(slide, x + 48, ry + 5, w - 182, linhaH - 10, '“' + c.texto + '”', { fs: 9.2, min: 6.8, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 116, middle: true });
-    // O selo vai em toda linha. Antes ele sumia quando a página inteira era de
-    // uma origem só — como a decisão era por página e não pela lista, o mesmo
-    // deck tinha slides com e sem selo, e quem lia não sabia de onde vinha o
-    // trecho sem voltar páginas.
-    const corOrigem = c.origem === 'Autoavaliação' ? PRH_DS.colors.premium : PRH_DS.colors.brandLight;
-    PRH_pill_(slide, x + w - 124, ry + (linhaH - 18) / 2, 110, 18, c.origem.toUpperCase(), corOrigem, '#FFFFFF');
+    PRH_texto_(slide, x + 48, ry + 5, w - 62, linhaH - 10, '“' + c.texto + '”', { fs: 9.2, min: 6.8, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 116, middle: true });
     ry += linhaH + PRH_COMENT_GAP;
   });
 
