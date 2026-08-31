@@ -10,7 +10,7 @@ const PRH_CONFIG = Object.freeze({
   locale: 'pt-BR',
   timezone: 'America/Sao_Paulo',
   expectedRatio: 16 / 9,
-  slideCount: 8,
+  slidesFixos: 7,   // capa, kpis, comparação, critérios, 1 de cada comentário, ação
   maxComments: 5   // por slide de comentários
 });
 
@@ -235,17 +235,28 @@ function PRH_anonimizarComentario_(texto) {
   return PRH_limitarTexto_(t, 220);
 }
 
-function PRH_definirRoteiro_() {
+function PRH_definirRoteiro_(m) {
+  // Os comentários entram todos: cada bloco vira quantos slides forem precisos,
+  // PRH_CONFIG.maxComments por slide. Lista vazia ainda rende um slide, com a
+  // explicação de por que não há nada para mostrar.
+  const paginas = function (lista, id, titulo) {
+    const total = Math.max(1, Math.ceil(lista.length / PRH_CONFIG.maxComments));
+    const saida = [];
+    for (let i = 0; i < total; i++) {
+      saida.push({ id: id + ':' + i, titulo: titulo + (total > 1 ? ' (' + (i + 1) + '/' + total + ')' : '') });
+    }
+    return saida;
+  };
+
   return [
     { id: 'capa', titulo: 'Pesquisa de satisfação interdepartamental' },
     { id: 'kpis', titulo: 'Indicadores-chave' },
     { id: 'comparacao', titulo: 'Autoavaliação × percepção externa' },
-    { id: 'criterios', titulo: 'Os sete critérios' },
-    { id: 'criteriosColunas', titulo: 'Os sete critérios · em colunas' },
-    { id: 'fortes', titulo: 'O que a área faz bem' },
-    { id: 'melhorias', titulo: 'O que pode melhorar' },
-    { id: 'acao', titulo: 'Plano de ação para validação' }
-  ];
+    { id: 'criterios', titulo: 'Os sete critérios' }
+  ]
+    .concat(paginas(m.comentarios.positivos, 'fortes', m.comentarios.tituloPositivos))
+    .concat(paginas(m.comentarios.melhorias, 'melhorias', m.comentarios.tituloMelhorias))
+    .concat([{ id: 'acao', titulo: 'Plano de ação para validação' }]);
 }
 
 function PRH_reconstruirDeck_(deck, modelo, roteiro) {
@@ -253,7 +264,10 @@ function PRH_reconstruirDeck_(deck, modelo, roteiro) {
   if (!W || !H || Math.abs(W / H - PRH_CONFIG.expectedRatio) > 0.015) {
     throw new Error('O deck alvo não está em 16:9 (dimensões atuais: ' + W + ' × ' + H + ' pt).');
   }
-  if (roteiro.length !== PRH_CONFIG.slideCount) throw new Error('Roteiro inválido: esperado ' + PRH_CONFIG.slideCount + ' slides.');
+  // O total varia com a quantidade de comentários, então o piso é o que não muda.
+  if (roteiro.length < PRH_CONFIG.slidesFixos) {
+    throw new Error('Roteiro inválido: esperado ao menos ' + PRH_CONFIG.slidesFixos + ' slides, montados ' + roteiro.length + '.');
+  }
 
   const anteriores = deck.getSlides().slice();
   const novos = [];
@@ -273,7 +287,7 @@ function PRH_reconstruirDeck_(deck, modelo, roteiro) {
     throw erro;
   }
 
-  Logger.log('PRH_: oito novos slides prontos; iniciando substituição explícita do conteúdo anterior.');
+  Logger.log('PRH_: ' + roteiro.length + ' novos slides prontos; iniciando substituição do conteúdo anterior.');
   anteriores.forEach(function (slide) { slide.remove(); });
   if (deck.getSlides().length !== roteiro.length) throw new Error('Contagem final de slides divergente.');
   deck.saveAndClose();
@@ -283,16 +297,28 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
   const W = deck.getPageWidth(), H = deck.getPageHeight();
   if (id === 'capa') return PRH_slideCapa_(slide, W, H, m);
   PRH_fundoClaro_(slide);
-  const titulo = id === 'fortes' ? m.comentarios.tituloPositivos.toUpperCase()
-    : id === 'melhorias' ? m.comentarios.tituloMelhorias.toUpperCase()
-    : PRH_tituloPorId_(id);
-  PRH_header_(slide, W, titulo, m.area + ' · Atualizado em ' + m.geradoEm);
+
+  // Slides de comentário: o subtítulo é só a área — a data já está na capa e
+  // no rodapé de todo o resto, e aqui ela roubava atenção do texto das pessoas.
+  const parte = id.split(':');
+  if (parte[0] === 'fortes' || parte[0] === 'melhorias') {
+    const positivo = parte[0] === 'fortes';
+    const lista = positivo ? m.comentarios.positivos : m.comentarios.melhorias;
+    const titulo = (positivo ? m.comentarios.tituloPositivos : m.comentarios.tituloMelhorias).toUpperCase();
+    // Duas páginas seguidas com o mesmo título deixam quem folheia sem saber
+    // se avançou; o contador no cabeçalho resolve.
+    const totalPaginas = Math.max(1, Math.ceil(lista.length / PRH_CONFIG.maxComments));
+    const marcador = totalPaginas > 1 ? '  ·  ' + (Number(parte[1]) + 1) + '/' + totalPaginas : '';
+    PRH_header_(slide, W, titulo + marcador, m.area);
+    PRH_slideComentarios_(slide, W, H, lista, positivo ? PRH_DS.colors.green : PRH_DS.colors.orange, Number(parte[1]));
+    PRH_rodape_(slide, W, H, numero);
+    return;
+  }
+
+  PRH_header_(slide, W, PRH_tituloPorId_(id), m.area + ' · Atualizado em ' + m.geradoEm);
   if (id === 'kpis') PRH_slideKpis_(slide, W, H, m);
   else if (id === 'comparacao') PRH_slideComparacao_(slide, W, H, m);
   else if (id === 'criterios') PRH_slideCriterios_(slide, W, H, m);
-  else if (id === 'criteriosColunas') PRH_slideCriteriosColunas_(slide, W, H, m);
-  else if (id === 'fortes') PRH_slideComentarios_(slide, W, H, m.comentarios.positivos, PRH_DS.colors.green);
-  else if (id === 'melhorias') PRH_slideComentarios_(slide, W, H, m.comentarios.melhorias, PRH_DS.colors.orange);
   else if (id === 'acao') PRH_slideAcao_(slide, W, H, m);
   else throw new Error('Tipo de slide desconhecido: ' + id);
   PRH_rodape_(slide, W, H, numero);
@@ -302,7 +328,6 @@ function PRH_tituloPorId_(id) {
   const mapa = {
     kpis: 'INDICADORES-CHAVE',
     comparacao: 'AUTOAVALIAÇÃO × PERCEPÇÃO EXTERNA', criterios: 'OS SETE CRITÉRIOS',
-    criteriosColunas: 'OS SETE CRITÉRIOS · EM COLUNAS',
     acao: 'PLANO DE AÇÃO PARA VALIDAÇÃO'
   };
   return mapa[id] || id;
@@ -365,39 +390,8 @@ function PRH_frasePosicao_(sujeito, delta, referencia) {
     (delta > 0 ? ' acima ' : ' abaixo ') + de + '.';
 }
 
-/** Versão em barras deitadas: uma faixa por critério, externa e auto lado a lado. */
+/** Os sete critérios em colunas: externa e autoavaliação lado a lado. */
 function PRH_slideCriterios_(slide, W, H, m) {
-  const x = 30, labelW = 186, chartX = x + labelW, chartW = 244;
-  const colExterna = chartX + chartW + 10, colAuto = colExterna + 44, colEmpresa = colAuto + 46;
-  const y = 84, rowH = 33;
-
-  PRH_legendaAutoExterna_(slide, W - 250, 67);
-  // Marcas da escala posicionadas de verdade — alinhadas com as divisórias
-  // que PRH_escalaBarra_ desenha dentro de cada faixa.
-  for (let v = 1; v <= 5; v++) {
-    PRH_texto_(slide, chartX + chartW * v / 5 - 26, y, 28, 13, String(v), { fs: 6.5, min: 6, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true, align: 'right' });
-  }
-  PRH_texto_(slide, colExterna, y, 42, 13, 'EXTERNA', { fs: 6.3, min: 6, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true });
-  PRH_texto_(slide, colAuto, y, 42, 13, 'AUTO', { fs: 6.3, min: 6, bold: true, color: PRH_DS.colors.premium, family: PRH_DS.fonts.title, oneLine: true });
-  PRH_texto_(slide, colEmpresa, y, 90, 13, 'EMPRESA', { fs: 6.3, min: 6, bold: true, color: PRH_DS.colors.muted, family: PRH_DS.fonts.title, oneLine: true });
-
-  m.criterios.forEach(function (c, i) {
-    const ry = y + 22 + i * rowH;
-    if (i % 2 === 0) PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, x, ry - 2, W - 60, rowH - 3, '#FFFFFF', null);
-    PRH_texto_(slide, x + 8, ry, labelW - 16, 28, c.nome, { fs: 8, min: 6.5, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.body, middle: true });
-    PRH_escalaBarra_(slide, chartX, ry + 3, chartW, 10, c.externa, PRH_DS.colors.brandLight);
-    PRH_escalaBarra_(slide, chartX, ry + 16, chartW, 10, c.auto, PRH_DS.colors.premium);
-    PRH_texto_(slide, colExterna, ry, 42, 28, PRH_numOuND_(c.externa), { fs: 10, min: 8, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true, middle: true });
-    PRH_texto_(slide, colAuto, ry, 42, 28, PRH_numOuND_(c.auto), { fs: 10, min: 8, bold: true, color: PRH_DS.colors.premium, family: PRH_DS.fonts.title, oneLine: true, middle: true });
-    if (c.benchmark !== null) {
-      PRH_texto_(slide, colEmpresa, ry, 90, 28, PRH_num_(c.benchmark), { fs: 8, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true, middle: true });
-    }
-  });
-  PRH_texto_(slide, 38, H - 48, W - 76, 14, 'Empresa: consolidado externo somente de áreas elegíveis; exibido como referência, sem ranking.', { fs: 7, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
-}
-
-/** Versão em colunas verticais: mesmos dados, barras para cima. */
-function PRH_slideCriteriosColunas_(slide, W, H, m) {
   const esquerda = 52, base = 306, alturaMax = 190, topo = base - alturaMax;
   const larguraPlot = W - esquerda - 30, grupo = larguraPlot / m.criterios.length;
   const larguraBarra = 30, folga = (grupo - larguraBarra * 2 - 6) / 2;
@@ -454,7 +448,7 @@ function PRH_legendaAutoExterna_(slide, x, y) {
 }
 
 /** Comentários em sequência, um por linha. Usado pelos dois slides abertos. */
-function PRH_slideComentarios_(slide, W, H, lista, cor) {
+function PRH_slideComentarios_(slide, W, H, lista, cor, pagina) {
   if (!lista.length) {
     PRH_card_(slide, 30, 92, W - 60, 190, PRH_DS.colors.muted);
     PRH_texto_(slide, 54, 125, W - 108, 100, 'Nenhum comentário pode ser exibido nesta pergunta. O bloco qualitativo respeita o corte de cada origem e não usa conteúdo abaixo do mínimo.', { fs: 16, min: 12, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, spacing: 116, middle: true });
@@ -462,7 +456,8 @@ function PRH_slideComentarios_(slide, W, H, lista, cor) {
   }
 
   const x = 30, w = W - 60, y = 78, linhaH = 48, gap = 6;
-  const mostrados = lista.slice(0, PRH_CONFIG.maxComments);
+  const inicio = (pagina || 0) * PRH_CONFIG.maxComments;
+  const mostrados = lista.slice(inicio, inicio + PRH_CONFIG.maxComments);
 
   // Quando todos os trechos vêm da mesma origem, um selo por linha só repete
   // a mesma palavra cinco vezes. Nesse caso a origem vira uma nota única no
@@ -477,7 +472,7 @@ function PRH_slideComentarios_(slide, W, H, lista, cor) {
   mostrados.forEach(function (c, i) {
     const ry = y + i * (linhaH + gap);
     PRH_card_(slide, x, ry, w, linhaH, cor);
-    PRH_texto_(slide, x + 14, ry, 26, linhaH, PRH_inteiro_(i + 1), { fs: 15, min: 11, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, middle: true });
+    PRH_texto_(slide, x + 14, ry, 26, linhaH, PRH_inteiro_(inicio + i + 1), { fs: 15, min: 11, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, middle: true });
     PRH_texto_(slide, x + 44, ry + 5, larguraTexto, linhaH - 10, '“' + c.texto + '”', { fs: 9.2, min: 6.8, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 116, middle: true });
     if (misturado) {
       const corOrigem = c.origem === 'Autoavaliação' ? PRH_DS.colors.premium : PRH_DS.colors.brandLight;
@@ -485,9 +480,10 @@ function PRH_slideComentarios_(slide, W, H, lista, cor) {
     }
   });
 
-  const sobra = lista.length - mostrados.length;
   const nota = 'Trechos sem identificação; contatos e links removidos. Ordem por origem e extensão — não é ranking.' +
-    (sobra > 0 ? ' Outros ' + PRH_inteiro_(sobra) + ' comentários não couberam aqui.' : '');
+    (lista.length > PRH_CONFIG.maxComments
+      ? ' ' + PRH_inteiro_(lista.length) + ' comentários no total, ' + PRH_inteiro_(PRH_CONFIG.maxComments) + ' por slide.'
+      : '');
   PRH_texto_(slide, 38, H - 48, W - 76, 14, nota, { fs: 7.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
 }
 
@@ -505,7 +501,6 @@ function PRH_slideAcao_(slide, W, H) {
     PRH_pill_(slide, cx + 12, y + 15, cw - 24, 23, d.t, d.c, '#FFFFFF');
     PRH_texto_(slide, cx + 14, y + 56, cw - 28, 94, d.body, { fs: 10.2, min: 8, color: PRH_DS.colors.text, family: PRH_DS.fonts.body, spacing: 122 });
   });
-  PRH_texto_(slide, 42, 301, W - 84, 34, 'Este slide é deliberadamente um canvas: o gerador não cria diagnóstico, causalidade, responsável ou compromisso em nome da equipe.', { fs: 9.5, min: 8, bold: true, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 116, middle: true });
 }
 
 function PRH_fundoClaro_(slide) { slide.getBackground().setSolidFill(PRH_DS.colors.bg); }

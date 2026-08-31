@@ -36,7 +36,7 @@ exemplos.forEach((par,i)=>{
 });
 
 vm.runInContext('PRH_gerarApresentacaoPlanejamentoGestao();',s);
-const nomes=['Capa','Indicadores','Comparação','Critérios (barras)','Critérios (colunas)','Faz bem','Melhorar','Ação'];
+const nomes=vm.runInContext('PRH_definirRoteiro_(PRH_montarModeloPlanejamentoGestao_(lerRespostas_()))',s).map(r=>r.titulo);
 const out=process.argv[2]||path.join(__dirname,'..','previa');
 fs.mkdirSync(out,{recursive:true});
 let html='<style>body{background:#334;font-family:system-ui;margin:0;padding:24px}h2{color:#fff;font-size:14px;margin:18px 0 8px}svg{box-shadow:0 4px 18px #0006;display:block}</style>';
