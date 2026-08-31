@@ -170,6 +170,29 @@ const SENHA = 'SenhaForte#2026';
   await page.waitForTimeout(300);
   ok('"carregar mais" traz mais', await conta('.comentario') > antes);
 
+  console.log('\n── Exportar CSV ──');
+  const baixados = [];
+  page.on('download', d => baixados.push(d.suggestedFilename()));
+  await page.evaluate(() => { document.getElementById('avisoExport').innerHTML = ''; });
+  await page.click('#btnExportar');
+  await page.waitForTimeout(900);
+  const aviso = await page.evaluate(() => document.getElementById('avisoExport').textContent);
+  ok('exportação confirma quantos comentários', /\d+ comentários prontos/.test(aviso), aviso.slice(0, 70));
+  ok('não afirma que o download começou sem saber', aviso.indexOf('foi iniciado') === -1);
+  ok('oferece link manual de fallback',
+    await page.evaluate(() => !!document.querySelector('#avisoExport a[download]')));
+  const href = await page.evaluate(() => document.querySelector('#avisoExport a[download]').getAttribute('href'));
+  ok('o link aponta para um blob válido', /^blob:/.test(href), href.slice(0, 20));
+
+  // o conteúdo do CSV vem do servidor: confere separador, cabeçalho e linhas
+  const csv = rodar('exportarComentarios(__senha, {})');
+  ok('CSV tem cabeçalho com ; como separador', csv.conteudo.split('\r\n')[0] === '"Área Avaliada";"Origem";"Pergunta";"Comentário"');
+  ok('CSV tem uma linha por comentário', csv.conteudo.trim().split('\r\n').length === csv.total + 1, csv.total);
+  ok('CSV vem sem BOM (quem põe é o navegador)', csv.conteudo.charCodeAt(0) !== 0xFEFF);
+  const filtrado = rodar('exportarComentarios(__senha, {"origem":"Autoavaliação"})');
+  ok('exportação respeita o filtro', filtrado.total < csv.total, filtrado.total + ' de ' + csv.total);
+  ok('nome do arquivo reflete o filtro', filtrado.nome.indexOf('Autoavaliação') !== -1, filtrado.nome);
+
   ok('nenhum erro de JavaScript na página', erros.length === 0, erros.join('; '));
   await browser.close();
   fim('Painel OK.');

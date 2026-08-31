@@ -325,8 +325,8 @@ function exportarComentarios(senha, filtros) {
     linhas.push([c.area, c.origem, c.pergunta, c.texto].map(celula).join(';'));
   });
 
-  // BOM para o Excel abrir os acentos corretamente
-  const conteudo = '﻿' + linhas.join('\r\n');
+  // Sem BOM aqui: quem adiciona é baixarCsv_, ao montar o Blob no navegador.
+  const conteudo = linhas.join('\r\n');
   const pedaco = function (v) { return v ? '-' + String(v).replace(/[^\wÀ-ÿ]+/g, '_').slice(0, 30) : ''; };
   const nome = 'Comentarios' + pedaco(f.area) + pedaco(f.origem) + pedaco(f.pergunta) + '-' +
                Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd_HHmm') + '.csv';
@@ -2007,17 +2007,24 @@ function getPainelHTML() {
     }
     function verMais() { comentariosVisiveis += POR_PAGINA; desenharComentarios(); }
 
+    /**
+     * Tenta baixar o CSV pelo navegador e devolve a URL do blob.
+     * O clique programático pode ser bloqueado pelo sandbox do iframe do Apps
+     * Script — e não há como detectar isso. Por isso a URL volta daqui: quem
+     * chama mostra um link visível para o usuário clicar se nada acontecer.
+     */
     function baixarCsv_(nome, conteudo) {
-      const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8' });
+      // BOM na frente para o Excel abrir os acentos corretamente.
+      const blob = new Blob(['\ufeff' + conteudo], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = nome;
       link.style.display = 'none';
       document.body.appendChild(link);
-      link.click();
+      try { link.click(); } catch (e) { /* sandbox pode recusar; o link manual resolve */ }
       document.body.removeChild(link);
-      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      return url;   // não revogamos: o link manual abaixo ainda precisa dela
     }
 
     function exportar() {
@@ -2036,10 +2043,12 @@ function getPainelHTML() {
           b.disabled = false; b.textContent = original;
           if (r && r.negado) { location.reload(); return; }
           if (r && r.erro) { document.getElementById('avisoExport').innerHTML = '<div class="aviso">' + esc(r.erro) + '</div>'; return; }
-          baixarCsv_(r.nome, r.conteudo);
+          const url = baixarCsv_(r.nome, r.conteudo);
           document.getElementById('avisoExport').innerHTML =
-            '<div class="aviso">✅ <strong>' + r.total + ' comentários exportados.</strong> ' +
-            'O download de <em>' + esc(r.nome) + '</em> foi iniciado.</div>';
+            '<div class="aviso">✅ <strong>' + r.total + ' comentários prontos</strong> em <em>' + esc(r.nome) + '</em>. ' +
+            'O download costuma começar sozinho — se não começou, ' +
+            '<a href="' + url + '" download="' + esc(r.nome) + '" target="_blank" rel="noopener"><strong>clique aqui</strong></a>.' +
+            '</div>';
         })
         .withFailureHandler(function (e) {
           b.disabled = false; b.textContent = original;
