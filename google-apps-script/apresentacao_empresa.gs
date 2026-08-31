@@ -13,7 +13,12 @@
 const PRHE_CONFIG = Object.freeze({
   // ID do deck da apresentação geral: o trecho da URL entre /d/ e /edit.
   // Pode ficar aqui ou na propriedade de script DECK_EMPRESA — ver PRHE_deckId_().
-  deckId: '',
+  //
+  // ATENÇÃO: hoje é o MESMO deck de apresentacao.gs (o piloto de Planejamento
+  // & Gestão). Os dois geradores apagam todos os slides do deck que recebem,
+  // então quem rodar por último sobrescreve o outro. Para manter as duas
+  // apresentações vivas ao mesmo tempo, cada uma precisa do seu próprio deck.
+  deckId: '1axfQX9FW1U4EIlnhJKDA2XizGoERMGNNXF8nmPCOpSI',
   expectedRatio: 16 / 9,
   slidesFixos: 5,   // capa, visão geral, ranking, confronto, critérios
   maxDestaques: 3
@@ -49,6 +54,10 @@ function PRHE_gerarApresentacaoEmpresa() {
 
   try {
     const deckId = PRHE_deckId_();
+    if (typeof PRH_CONFIG !== 'undefined' && PRH_CONFIG.deckId === deckId) {
+      Logger.log('PRHE_: AVISO — este deck é o mesmo de apresentacao.gs. O que estiver lá ' +
+        'do piloto de "' + PRH_CONFIG.area + '" será substituído pela apresentação da empresa.');
+    }
     if (typeof dadosDaEmpresa_ !== 'function') {
       throw new Error('Dependência ausente: painel.gs precisa estar no mesmo projeto.');
     }

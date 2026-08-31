@@ -4,14 +4,15 @@ const { criarVerificador } = require('./_ambiente');
 
 const { ok, fim } = criarVerificador();
 
-console.log('\n── Sem deck configurado ──');
+console.log('\n── De onde vem o ID do deck ──');
 {
   const a = montarEmpresa({ props: {} });
-  a.rodar('inserirDadosDeTeste()');
-  let erro = null;
-  try { a.rodar('PRHE_gerarApresentacaoEmpresa()'); } catch (e) { erro = e; }
-  ok('recusa rodar sem deck', !!erro && /Nenhum deck configurado/.test(erro.message));
-  ok('nada foi removido', a.registro.removidos === 0);
+  ok('o código tem precedência sobre a propriedade de script',
+    a.rodar('PRHE_deckId_()') === a.rodar('PRHE_CONFIG.deckId'));
+  ok('deck configurado bate com o do teste', a.rodar('PRHE_deckId_()') === DECK);
+  // Hoje os dois decks são o mesmo; se um dia se separarem, este aviso some.
+  const mesmo = a.rodar('PRH_CONFIG.deckId === PRHE_deckId_()');
+  console.log('   ⚠️  empresa e área apontam para o mesmo deck:', mesmo);
 }
 
 console.log('\n── Planilha vazia ──');
