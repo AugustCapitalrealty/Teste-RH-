@@ -10,7 +10,7 @@ const PRH_CONFIG = Object.freeze({
   locale: 'pt-BR',
   timezone: 'America/Sao_Paulo',
   expectedRatio: 16 / 9,
-  slideCount: 6,
+  slideCount: 7,
   maxComments: 4
 });
 
@@ -217,6 +217,7 @@ function PRH_definirRoteiro_() {
     { id: 'kpis', titulo: 'Indicadores-chave' },
     { id: 'comparacao', titulo: 'Autoavaliação × percepção externa' },
     { id: 'criterios', titulo: 'Os sete critérios' },
+    { id: 'criteriosColunas', titulo: 'Os sete critérios · em colunas' },
     { id: 'voz', titulo: 'Voz qualitativa anonimizada' },
     { id: 'acao', titulo: 'Plano de ação para validação' }
   ];
@@ -261,6 +262,7 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
   if (id === 'kpis') PRH_slideKpis_(slide, W, H, m);
   else if (id === 'comparacao') PRH_slideComparacao_(slide, W, H, m);
   else if (id === 'criterios') PRH_slideCriterios_(slide, W, H, m);
+  else if (id === 'criteriosColunas') PRH_slideCriteriosColunas_(slide, W, H, m);
   else if (id === 'voz') PRH_slideVoz_(slide, W, H, m);
   else if (id === 'acao') PRH_slideAcao_(slide, W, H, m);
   else throw new Error('Tipo de slide desconhecido: ' + id);
@@ -271,6 +273,7 @@ function PRH_tituloPorId_(id) {
   const mapa = {
     kpis: 'INDICADORES-CHAVE',
     comparacao: 'AUTOAVALIAÇÃO × PERCEPÇÃO EXTERNA', criterios: 'OS SETE CRITÉRIOS',
+    criteriosColunas: 'OS SETE CRITÉRIOS · EM COLUNAS',
     voz: 'VOZ QUALITATIVA ANONIMIZADA', acao: 'PLANO DE AÇÃO PARA VALIDAÇÃO'
   };
   return mapa[id] || id;
@@ -333,20 +336,92 @@ function PRH_frasePosicao_(sujeito, delta, referencia) {
     (delta > 0 ? ' acima ' : ' abaixo ') + de + '.';
 }
 
+/** Versão em barras deitadas: uma faixa por critério, externa e auto lado a lado. */
 function PRH_slideCriterios_(slide, W, H, m) {
-  const x = 30, y = 82, rowH = 35, labelW = 210, chartX = x + labelW, chartW = 300;
-  PRH_texto_(slide, chartX, y, chartW, 15, '1                    2                    3                    4                    5', { fs: 6.5, min: 6, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+  const x = 30, labelW = 186, chartX = x + labelW, chartW = 244;
+  const colExterna = chartX + chartW + 10, colAuto = colExterna + 44, colEmpresa = colAuto + 46;
+  const y = 84, rowH = 33;
+
+  PRH_legendaAutoExterna_(slide, W - 250, 67);
+  // Marcas da escala posicionadas de verdade — alinhadas com as divisórias
+  // que PRH_escalaBarra_ desenha dentro de cada faixa.
+  for (let v = 1; v <= 5; v++) {
+    PRH_texto_(slide, chartX + chartW * v / 5 - 26, y, 28, 13, String(v), { fs: 6.5, min: 6, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true, align: 'right' });
+  }
+  PRH_texto_(slide, colExterna, y, 42, 13, 'EXTERNA', { fs: 6.3, min: 6, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true });
+  PRH_texto_(slide, colAuto, y, 42, 13, 'AUTO', { fs: 6.3, min: 6, bold: true, color: PRH_DS.colors.premium, family: PRH_DS.fonts.title, oneLine: true });
+  PRH_texto_(slide, colEmpresa, y, 90, 13, 'EMPRESA', { fs: 6.3, min: 6, bold: true, color: PRH_DS.colors.muted, family: PRH_DS.fonts.title, oneLine: true });
+
   m.criterios.forEach(function (c, i) {
-    const ry = y + 20 + i * rowH;
-    if (i % 2 === 0) PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, x, ry - 3, W - 60, rowH - 2, '#FFFFFF', null);
-    PRH_texto_(slide, x + 8, ry, labelW - 16, 25, c.nome, { fs: 8.2, min: 6.5, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.body, middle: true });
-    PRH_escalaBarra_(slide, chartX, ry + 6, chartW, 12, c.externa, PRH_DS.colors.brandLight);
-    PRH_texto_(slide, chartX + chartW + 9, ry, 42, 24, PRH_numOuND_(c.externa), { fs: 10, min: 8, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true, middle: true });
+    const ry = y + 22 + i * rowH;
+    if (i % 2 === 0) PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, x, ry - 2, W - 60, rowH - 3, '#FFFFFF', null);
+    PRH_texto_(slide, x + 8, ry, labelW - 16, 28, c.nome, { fs: 8, min: 6.5, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.body, middle: true });
+    PRH_escalaBarra_(slide, chartX, ry + 3, chartW, 10, c.externa, PRH_DS.colors.brandLight);
+    PRH_escalaBarra_(slide, chartX, ry + 16, chartW, 10, c.auto, PRH_DS.colors.premium);
+    PRH_texto_(slide, colExterna, ry, 42, 28, PRH_numOuND_(c.externa), { fs: 10, min: 8, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true, middle: true });
+    PRH_texto_(slide, colAuto, ry, 42, 28, PRH_numOuND_(c.auto), { fs: 10, min: 8, bold: true, color: PRH_DS.colors.premium, family: PRH_DS.fonts.title, oneLine: true, middle: true });
     if (c.benchmark !== null) {
-      PRH_texto_(slide, chartX + chartW + 50, ry, 95, 24, 'Empresa ' + PRH_num_(c.benchmark), { fs: 7, min: 6, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true, middle: true });
+      PRH_texto_(slide, colEmpresa, ry, 90, 28, PRH_num_(c.benchmark), { fs: 8, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true, middle: true });
     }
   });
-  PRH_texto_(slide, 38, H - 50, W - 76, 15, 'Benchmark da empresa: consolidado externo somente de áreas elegíveis; exibido como referência, sem ranking.', { fs: 7, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+  PRH_texto_(slide, 38, H - 48, W - 76, 14, 'Empresa: consolidado externo somente de áreas elegíveis; exibido como referência, sem ranking.', { fs: 7, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+}
+
+/** Versão em colunas verticais: mesmos dados, barras para cima. */
+function PRH_slideCriteriosColunas_(slide, W, H, m) {
+  const esquerda = 52, base = 306, alturaMax = 190, topo = base - alturaMax;
+  const larguraPlot = W - esquerda - 30, grupo = larguraPlot / m.criterios.length;
+  const larguraBarra = 30, folga = (grupo - larguraBarra * 2 - 6) / 2;
+
+  PRH_legendaAutoExterna_(slide, W - 250, 80);
+
+  // Grade horizontal de 1 a 5, com a escala à esquerda.
+  for (let v = 0; v <= 5; v++) {
+    const gy = base - alturaMax * v / 5;
+    PRH_linha_(slide, esquerda - 6, gy, esquerda + larguraPlot, gy, v === 0 ? PRH_DS.colors.lines : PRH_DS.colors.grid, v === 0 ? 1 : 0.6);
+    PRH_texto_(slide, 24, gy - 7, 22, 14, String(v), { fs: 7, min: 6, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true, align: 'right' });
+  }
+
+  // Os traços da empresa vão ANTES das colunas: no Slides a ordem de inserção
+  // é a ordem de empilhamento, então as barras cobrem o miolo do traço e sobram
+  // só as pontas, de cada lado do grupo. Assim o traço nunca corta o rótulo.
+  m.criterios.forEach(function (c, i) {
+    if (c.benchmark === null) return;
+    const gx = esquerda + i * grupo;
+    const by = base - alturaMax * Number(c.benchmark) / 5;
+    PRH_linha_(slide, gx + folga - 10, by, gx + folga + larguraBarra * 2 + 16, by, PRH_DS.colors.orange, 1.5);
+  });
+
+  m.criterios.forEach(function (c, i) {
+    const gx = esquerda + i * grupo;
+    [{ valor: c.externa, cor: PRH_DS.colors.brandLight, dx: folga },
+     { valor: c.auto, cor: PRH_DS.colors.premium, dx: folga + larguraBarra + 6 }].forEach(function (b) {
+      const bx = gx + b.dx;
+      if (b.valor === null) {
+        PRH_texto_(slide, bx - 6, base - 22, larguraBarra + 12, 14, 'N/D', { fs: 7, min: 6, bold: true, color: PRH_DS.colors.muted, family: PRH_DS.fonts.title, oneLine: true, align: 'center' });
+        return;
+      }
+      const altura = Math.max(2, alturaMax * Number(b.valor) / 5);
+      PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, bx, base - altura, larguraBarra, altura, b.cor, null);
+      // O rótulo vai dentro do topo da coluna. Flutuando acima, ele disputava
+      // espaço com o traço da empresa sempre que os dois valores eram próximos.
+      const cabeDentro = altura >= 22;
+      PRH_texto_(slide, bx - 8, cabeDentro ? base - altura + 3 : base - altura - 15, larguraBarra + 16, 14,
+        PRH_num_(b.valor), { fs: 7.6, min: 6.2, bold: true, color: cabeDentro ? '#FFFFFF' : b.cor, family: PRH_DS.fonts.title, oneLine: true, align: 'center' });
+    });
+    PRH_texto_(slide, gx + 2, base + 8, grupo - 4, 42, c.nome, { fs: 6.6, min: 5.6, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.body, align: 'center', spacing: 110 });
+  });
+
+  PRH_texto_(slide, esquerda, topo - 14, 300, 13, 'ESCALA DE 1 A 5', { fs: 6.5, min: 6, bold: true, color: PRH_DS.colors.muted, family: PRH_DS.fonts.title, oneLine: true });
+  PRH_texto_(slide, 38, H - 48, W - 76, 14, 'O traço laranja em cada grupo é a média da empresa naquele critério — referência, sem ranking.', { fs: 7, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+}
+
+/** Legenda compartilhada pelas duas versões do slide de critérios. */
+function PRH_legendaAutoExterna_(slide, x, y) {
+  PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, x, y + 4, 10, 8, PRH_DS.colors.brandLight, null);
+  PRH_texto_(slide, x + 15, y, 92, 14, 'Percepção externa', { fs: 7, min: 6, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, oneLine: true });
+  PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, x + 112, y + 4, 10, 8, PRH_DS.colors.premium, null);
+  PRH_texto_(slide, x + 127, y, 78, 14, 'Autoavaliação', { fs: 7, min: 6, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, oneLine: true });
 }
 
 function PRH_slideVoz_(slide, W, H, m) {
