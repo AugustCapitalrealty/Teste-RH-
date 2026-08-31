@@ -59,6 +59,13 @@ function PRHE_gerarApresentacaoEmpresa() {
         'do piloto de "' + PRH_CONFIG.area + '" será substituído pela apresentação da empresa.');
     }
     if (typeof dadosDaEmpresa_ !== 'function') {
+      // Distinguir os dois casos importa: "painel.gs não está aqui" e "painel.gs
+      // está aqui, mas é a versão antiga" pedem coisas diferentes de quem lê.
+      if (typeof obterDadosPainel === 'function') {
+        throw new Error('painel.gs está desatualizado: falta a função dadosDaEmpresa_(). ' +
+          'Atualize painel.gs — obterDadosPainel() passou a só checar a senha e delegar o ' +
+          'cálculo para dadosDaEmpresa_(), que é o que esta apresentação usa.');
+      }
       throw new Error('Dependência ausente: painel.gs precisa estar no mesmo projeto.');
     }
     if (typeof PRH_texto_ !== 'function') {
