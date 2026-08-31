@@ -300,9 +300,8 @@ function regerarAbasDaPlanilha(senha) {
 }
 
 /**
- * Exporta os comentários filtrados para um arquivo CSV no Drive e devolve o link.
- * Downloads diretos são bloqueados dentro do Apps Script, então gravamos o
- * arquivo e entregamos a URL — o RH clica e baixa/abre normalmente.
+ * Monta o CSV dos comentários filtrados e devolve o conteúdo ao navegador.
+ * O download é feito no cliente, evitando exigir permissão de acesso ao Drive.
  */
 function exportarComentarios(senha, filtros) {
   if (!senhaConfere_(senha)) return { negado: true };
@@ -332,8 +331,7 @@ function exportarComentarios(senha, filtros) {
   const nome = 'Comentarios' + pedaco(f.area) + pedaco(f.origem) + pedaco(f.pergunta) + '-' +
                Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd_HHmm') + '.csv';
 
-  const arquivo = DriveApp.createFile(nome, conteudo, MimeType.CSV);
-  return { ok: true, url: arquivo.getUrl(), nome: nome, total: lista.length };
+  return { ok: true, conteudo: conteudo, nome: nome, total: lista.length };
 }
 
 
@@ -1506,8 +1504,8 @@ function getPainelHTML() {
     /**
      * Eixo cartesiano compartilhado por colunas e linhas.
      * Escala configurável (0–5 por padrão, igual ao resto do painel) com linhas de grade.
-     * Com mais de 7 categorias, os rótulos giram e passam a mostrar o nome completo
-     * (não o abreviado dos 7 critérios) — é o caso das 13 áreas.
+     * Nomes completos são quebrados em várias linhas e cada categoria recebe largura
+     * própria. Assim nenhum nome de área é cortado, mesmo nos gráficos mais cheios.
      *
      * opts: { maxValor, passo, truncar }
      */
@@ -1518,10 +1516,34 @@ function getPainelHTML() {
       const truncar = opts.truncar !== false;
       const muitasCategorias = eixos.length > 7;
 
-      const L = muitasCategorias ? 55 : 34, T = 16, R = 14, alt = 266;
-      const B = muitasCategorias ? 150 : 58;   // rótulo rotacionado desce bastante abaixo da baseline
+      function quebrarRotulo_(nome) {
+        // A barra vira um ponto natural de quebra, sem desaparecer do texto.
+        const palavras = String(nome).trim().replace(/\\//g, '/ ').split(/\\s+/);
+        const linhas = [];
+        let atual = '';
+        palavras.forEach(function (palavra) {
+          const candidata = atual ? atual + ' ' + palavra : palavra;
+          if (atual && candidata.length > 17) {
+            linhas.push(atual);
+            atual = palavra;
+          } else {
+            atual = candidata;
+          }
+        });
+        if (atual) linhas.push(atual);
+        return linhas.length ? linhas : [''];
+      }
+
+      const rotulosQuebrados = truncar ? [] : eixos.map(quebrarRotulo_);
+      const maxLinhas = rotulosQuebrados.reduce(function (maior, linhas) {
+        return Math.max(maior, linhas.length);
+      }, 1);
+      const L = muitasCategorias || !truncar ? 55 : 34, T = 16, R = 14, alt = 266;
+      const B = truncar ? 58 : 28 + maxLinhas * 15;
       const H = T + alt + B;
-      const larguraSlot = muitasCategorias ? 62 : null;
+      // Nomes completos precisam de espaço horizontal real. Quando necessário,
+      // caixaGrafico_ ativa a rolagem horizontal em vez de comprimir os textos.
+      const larguraSlot = truncar ? (muitasCategorias ? 62 : null) : 104;
       const larg = larguraSlot ? larguraSlot * eixos.length : 720 - L - R;
       const W = L + larg + R;
       const fatia = larguraSlot || (larg / eixos.length);
@@ -1542,11 +1564,13 @@ function getPainelHTML() {
       let rotulos = '';
       eixos.forEach(function (nome, i) {
         const texto = truncar ? curto(nome) : nome;
-        if (muitasCategorias) {
-          const x = xc(i), yy = T + alt + 15;
-          rotulos += '<text x="' + x.toFixed(1) + '" y="' + yy + '" text-anchor="end" font-size="11" ' +
-            'font-weight="600" fill="#151E49" transform="rotate(-40 ' + x.toFixed(1) + ' ' + yy + ')">' +
-            esc(texto) + '</text>';
+        if (!truncar) {
+          const x = xc(i), yy = T + alt + 18;
+          rotulos += '<text x="' + x.toFixed(1) + '" y="' + yy + '" text-anchor="middle" font-size="11" ' +
+            'font-weight="600" fill="#151E49">' +
+            rotulosQuebrados[i].map(function (linha, j) {
+              return '<tspan x="' + x.toFixed(1) + '" dy="' + (j === 0 ? 0 : 15) + '">' + esc(linha) + '</tspan>';
+            }).join('') + '</text>';
         } else {
           rotulos += '<text x="' + xc(i).toFixed(1) + '" y="' + (T + alt + 20) +
             '" text-anchor="middle" font-size="12" font-weight="600" fill="#151E49">' + esc(texto) + '</text>';
@@ -1860,7 +1884,7 @@ function getPainelHTML() {
           '<option value="Autoavaliação">Só autoavaliação</option></select></div>' +
         '<div style="flex:1;min-width:200px"><label class="rotulo-campo" for="buscaComentario">Buscar no texto</label>' +
           '<input type="search" id="buscaComentario" placeholder="palavra ou trecho…" style="width:100%"></div>' +
-        '<button class="btn btn-claro" id="btnExportar" onclick="exportar()" title="Gera um arquivo CSV no seu Google Drive com os comentários da área selecionada.">⬇️ Exportar CSV</button>' +
+        '<button class="btn btn-claro" id="btnExportar" onclick="exportar()" title="Baixa um arquivo CSV com os comentários filtrados.">⬇️ Exportar CSV</button>' +
         '</div><div id="avisoExport" class="nao-imprime"></div>' +
         '<div id="listaComentarios"></div>' +
         '<div id="paginacao" style="text-align:center;margin-top:16px" class="nao-imprime"></div></section>';
@@ -1983,6 +2007,19 @@ function getPainelHTML() {
     }
     function verMais() { comentariosVisiveis += POR_PAGINA; desenharComentarios(); }
 
+    function baixarCsv_(nome, conteudo) {
+      const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = nome;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
+
     function exportar() {
       const b = document.getElementById('btnExportar');
       const filtros = {
@@ -1999,10 +2036,10 @@ function getPainelHTML() {
           b.disabled = false; b.textContent = original;
           if (r && r.negado) { location.reload(); return; }
           if (r && r.erro) { document.getElementById('avisoExport').innerHTML = '<div class="aviso">' + esc(r.erro) + '</div>'; return; }
+          baixarCsv_(r.nome, r.conteudo);
           document.getElementById('avisoExport').innerHTML =
             '<div class="aviso">✅ <strong>' + r.total + ' comentários exportados.</strong> ' +
-            'O arquivo <em>' + esc(r.nome) + '</em> foi salvo no seu Google Drive — ' +
-            '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">abrir agora</a>.</div>';
+            'O download de <em>' + esc(r.nome) + '</em> foi iniciado.</div>';
         })
         .withFailureHandler(function (e) {
           b.disabled = false; b.textContent = original;
