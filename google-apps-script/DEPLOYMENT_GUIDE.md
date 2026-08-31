@@ -1,420 +1,82 @@
-# 🚀 GUIA DE DEPLOYMENT - Google Apps Script
+# 🚀 Como publicar uma alteração
 
-## ⏱️ Tempo total: ~10 minutos
-
----
-
-## PASSO 1: Abrir Google Apps Script (2 minutos)
-
-### 1.1 Acesse o site
-```
-https://script.google.com/
-```
-
-### 1.2 Clique em "+ Novo projeto"
-```
-┌─────────────────────────────────┐
-│  Google Apps Script             │
-├─────────────────────────────────┤
-│                                  │
-│  [+ Novo projeto]  Meus projetos │
-│                                  │
-└─────────────────────────────────┘
-```
-
-### 1.3 Dê um nome ao projeto
-```
-Nome sugerido: "Hub RH - Pesquisa"
-```
-
-Clique em "Criar"
+> **Este guia é sobre ATUALIZAR o que já está no ar.**
+> Para a instalação do zero (criar o projeto, conectar a planilha, primeira
+> publicação), veja a seção *"Como colocar no ar"* do [README.md](README.md).
 
 ---
 
-## PASSO 2: Copiar o código (3 minutos)
+## O erro mais comum: "colei, salvei, e não mudou nada"
 
-### 2.1 No Google Apps Script, você verá um arquivo chamado "Código.gs"
+No Apps Script existem **duas camadas**, e elas se atualizam de formas diferentes:
 
-Apague TUDO que está lá e copie o seguinte:
+| Camada | Atualiza com | Quem enxerga |
+|---|---|---|
+| **Código salvo** | `Ctrl+S` | Só **você**, ao usar o menu *Executar* |
+| **Código implantado** | Criar uma **nova versão** | O **público**, na URL do formulário e do painel |
 
-### 2.2 Abra o arquivo `main.gs` (do repositório)
-```
-Copie TUDO o conteúdo (Ctrl+A, Ctrl+C)
-Cole no Google Apps Script (Ctrl+V)
-```
-
-**Seu arquivo deve ficar assim:**
-```javascript
-/**
- * Entry point - Render a página inicial do formulário
- */
-function doGet(e) {
-  ...
-}
-
-/**
- * POST handler - Recebe dados do formulário
- */
-function doPost(e) {
-  ...
-}
-...
-```
-
-### 2.3 Agora adicione o arquivo `sheets.gs`
-
-No Google Apps Script, clique em:
-```
-[+] → Nova arquivo → Google Apps Script
-```
-
-Nome: `sheets`
-
-Copie TUDO do arquivo `sheets.gs` (do repositório) e cole lá.
-
-**Resultado esperado:**
-```
-Google Apps Script Editor
-├─ main.gs (arquivo)
-└─ sheets.gs (arquivo novo)
-```
+Salvar **não** muda o que está no ar. É por isso que a alteração "não aparece".
 
 ---
 
-## PASSO 3: Criar Google Sheet (2 minutos)
+## O passo a passo certo
 
-### 3.1 Abra Google Sheets
-```
-https://sheets.google.com/
-```
+### 1. Colar os três arquivos
 
-### 3.2 Clique em "+ Novo"
-```
-┌──────────────┐
-│ + Novo       │
-└──────────────┘
-```
+`main.gs`, `sheets.gs` e `painel.gs` — **sempre os três juntos**. Eles chamam
+funções uns dos outros; atualizar só um gera erro do tipo
+`X is not defined`.
 
-### 3.3 Escolha "Planilha em branco"
+### 2. Salvar
 
-### 3.4 Dê um nome
-```
-Nome: "Pesquisa RH"
-```
+`Ctrl+S`.
 
-### 3.5 Copie a ID da planilha
-```
-URL: https://docs.google.com/spreadsheets/d/[ID-DA-PLANILHA]/edit
+### 3. Conferir o que está salvo
 
-Exemplo: https://docs.google.com/spreadsheets/d/1A2B3C4D5E6F7G8H9I/edit
-                                                   ^^^^^^^^^^^^^^^ (copie isto)
-```
+Execute **`verificarConfiguracao()`** e leia o Log. Ela mostra o prazo de
+encerramento, os mínimos de anonimato, se há dados de teste na planilha e
+quantas pessoas responderam.
 
-**Você vai usar esse ID no próximo passo!**
+- Valores **errados** → o código não foi colado/salvo direito. Volte ao passo 1.
+- Valores **certos** → siga para o passo 4.
 
----
+### 4. Criar a nova versão
 
-## PASSO 4: Conectar o Apps Script ao Sheets (1 minuto)
+**Implantar** → **Gerenciar implantações** → ✏️ (lápis) → em **Versão**,
+escolher **Nova versão** → **Implantar**.
 
-### 4.1 Volte para o Google Apps Script
-```
-https://script.google.com/
-```
+> ⚠️ **Não use "Nova implantação".** Isso cria uma **URL diferente**, e a URL que
+> as pessoas já têm continua servindo o código antigo. Se você já fez isso sem
+> querer, volte em *Gerenciar implantações* e verifique qual entrada corresponde
+> à URL que você divulgou — é essa que precisa da nova versão.
 
-### 4.2 Na aba `sheets.gs`, encontre esta linha:
+### 5. Recarregar sem cache
 
-```javascript
-function saveResponseToSheet(data) {
-  try {
-    // Pega o spreadsheet
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-```
-
-**Mude para:**
-
-```javascript
-function saveResponseToSheet(data) {
-  try {
-    // Abre o spreadsheet pelo ID
-    const ss = SpreadsheetApp.openById('[COLE-O-ID-AQUI]');
-```
-
-### 4.3 Exemplo:
-```javascript
-const ss = SpreadsheetApp.openById('1A2B3C4D5E6F7G8H9I');
-```
-
-**Salve (Ctrl+S)**
+`Ctrl+Shift+R` na página. O navegador guarda a versão anterior.
 
 ---
 
-## PASSO 5: Executar Inicialização (1 minuto)
+## Como saber se deu certo
 
-### 5.1 No topo do editor, clique em "Executar"
-```
-Google Apps Script Editor
-[Executar]  [Depurar]
-```
+| O que olhar | Onde |
+|---|---|
+| Aviso **"⏰ Responda até…"** na tela inicial | Formulário |
+| Seção **"Pergunta por área"** no menu do topo | Painel (`?page=painel`) |
+| Seletores **Barras / Colunas** nos gráficos | Painel |
 
-### 5.2 Selecione a função:
-```
-┌──────────────────────┐
-│ Executar qual função?│
-├──────────────────────┤
-│ › doGet              │
-│ › doPost             │
-│ › getFormHTML        │
-│ › saveResponseToSheet│
-│ › createResponsesHeader
-│ › initializeSpreadsheet  ← CLIQUE AQUI
-│ › seedTestData       │
-│ › calculateStats     │
-└──────────────────────┘
-```
-
-Clique em `initializeSpreadsheet`
-
-### 5.3 Clique no botão "Executar"
-
-### 5.4 Autorize o Apps Script
-```
-"Google Apps Script quer acessar sua conta Google"
-[Permitir]
-```
-
-Clique em "Permitir"
-
-### 5.5 Aguarde a execução
-```
-Execution completed successfully.
-```
+Se algum desses não aparecer, a implantação ainda está na versão antiga.
 
 ---
 
-## PASSO 6: Deploy como Web App (1 minuto)
+## Quando basta salvar (sem nova versão)
 
-### 6.1 No Google Apps Script, clique em "Deploy"
-```
-[Deploy ▼]
-```
+Funções executadas pelo menu *Executar* usam sempre o código **salvo**:
 
-### 6.2 Clique em "+ Novo deployment"
-```
-┌──────────────────────────┐
-│ Deployments              │
-├──────────────────────────┤
-│ [+ Novo deployment]      │
-└──────────────────────────┘
-```
+- `gerarIndicadores()`
+- `verificarConfiguracao()`
+- `apagarDadosDeTeste()`
+- `configurarSenhaDoPainel()`
+- `ativarAtualizacaoAutomatica()`
 
-### 6.3 Configure o deployment
-
-**Tipo de deployment:** "Aplicação Web"
-```
-┌──────────────────────┐
-│ Tipo de deployment   │
-├──────────────────────┤
-│ ○ Biblioteca         │
-│ ● Aplicação Web  ← (JÁ ESTÁ SELECIONADO)
-│ ○ Teste no head  │
-└──────────────────────┘
-```
-
-**Executar como:** "Sua conta"
-```
-┌──────────────────────┐
-│ Executar como        │
-├──────────────────────┤
-│ ● Sua conta  ← (JÁ ESTÁ SELECIONADO)
-│ ○ Novo usuário      │
-└──────────────────────┘
-```
-
-**Acessar como:** "Qualquer um"
-```
-┌──────────────────────┐
-│ Acessar como         │
-├──────────────────────┤
-│ ○ Eu                │
-│ ● Qualquer um  ← (MUDE PARA ISTO)
-│ ○ Qualquer pessoa   │
-│    com o link       │
-└──────────────────────┘
-```
-
-### 6.4 Clique em "Deploy"
-
----
-
-## PASSO 7: Copiar a URL (1 minuto)
-
-### 7.1 Após o deployment, você verá:
-```
-┌─────────────────────────────────────────┐
-│ Deployment criado com sucesso!          │
-├─────────────────────────────────────────┤
-│                                         │
-│ ID: AKfycbyX7z8H9I0J1K2L3M4N5O6P7Q8R   │
-│                                         │
-│ URL:                                    │
-│ https://script.google.com/macros/d/... │
-│                                    ...Z │
-│                                         │
-│ [Copiar para área de transferência]    │
-│                                         │
-└─────────────────────────────────────────┘
-```
-
-### 7.2 Clique em "Copiar para área de transferência"
-
-**OU copie manualmente a URL**
-
----
-
-## PASSO 8: Testar o Formulário (2 minutos)
-
-### 8.1 Cole a URL em uma aba do navegador
-
-### 8.2 Você verá o formulário:
-```
-┌──────────────────────────────────┐
-│          📊 Pesquisa RH          │
-├──────────────────────────────────┤
-│                                  │
-│ Departamento *                   │
-│ [Selecione...]                   │
-│                                  │
-│ 1. Como você avalia a            │
-│    comunicação interna? *         │
-│ [😞] [😕] [😐] [🙂] [😄]         │
-│                                  │
-│ 2. Qualidade do serviço          │
-│    prestado pela sua área? *     │
-│ [😞] [😕] [😐] [🙂] [😄]         │
-│                                  │
-│ 3. Integração e parceria         │
-│    entre departamentos? *        │
-│ [😞] [😕] [😐] [🙂] [😄]         │
-│                                  │
-│ Comentários adicionais           │
-│ [________________]               │
-│                                  │
-│ [Enviar Resposta]                │
-│                                  │
-└──────────────────────────────────┘
-```
-
-### 8.3 Preencha e teste:
-
-1. Selecione um departamento
-2. Clique em emojis (1, 2, 3)
-3. Digite um comentário (opcional)
-4. Clique "Enviar Resposta"
-
-### 8.4 Você verá:
-```
-✓ Resposta enviada com sucesso!
-
-Obrigado por responder!
-Sua resposta foi registrada com sucesso.
-```
-
----
-
-## PASSO 9: Verificar os dados no Sheets (1 minuto)
-
-### 9.1 Volte para Google Sheets
-```
-https://sheets.google.com/
-```
-
-### 9.2 Abra a planilha "Pesquisa RH"
-
-### 9.3 Você verá as abas:
-```
-├─ Respostas (seus dados salvos!)
-├─ ANALISE (estatísticas)
-└─ CONFIG (configurações)
-```
-
-### 9.4 Clique em "Respostas"
-
-**Você verá:**
-```
-┌──────────────┬──────────────┬────────┬────────┬────────┬─────────┬─────┐
-│ Timestamp    │ Departamento │ Perg 1 │ Perg 2 │ Perg 3 │ Coment. │ ID  │
-├──────────────┼──────────────┼────────┼────────┼────────┼─────────┼─────┤
-│ 2024-01-15   │ RH           │ 5      │ 4      │ 4      │ Ótimo!  │ ... │
-│ T10:30:00Z   │              │        │        │        │         │     │
-└──────────────┴──────────────┴────────┴────────┴────────┴─────────┴─────┘
-```
-
-✅ **Pronto! Funcionando!**
-
----
-
-## 🎉 SUCESSO!
-
-Seu formulário de pesquisa está ao vivo!
-
-### ✅ Checklist de Completion:
-- [x] Google Apps Script criado
-- [x] Código (main.gs + sheets.gs) adicionado
-- [x] Google Sheets criado e conectado
-- [x] Deployment feito
-- [x] Formulário testado
-- [x] Dados salvando em Sheets
-
----
-
-## 📊 Próximas ações:
-
-### Adicionar dados de teste (opcional):
-1. No Google Apps Script, execute `seedTestData()`
-2. Verá 10 respostas aparecerem no Sheets
-
-### Calcular estatísticas (opcional):
-1. No Google Apps Script, execute `calculateStats()`
-2. Veja dados agregados na aba "ANALISE"
-
-### Compartilhar formulário:
-1. Copie a URL
-2. Envie para os usuários
-3. Eles acessam e preenchem
-4. Respostas aparecem em tempo real no Sheets
-
----
-
-## ⚠️ Se der erro:
-
-### "Erro ao executar doGet"
-- Verifique se o ID do Sheets está correto (passo 4.3)
-- Tente fazer deploy novamente
-
-### "Resposta não está sendo salva"
-- Abra Google Apps Script → Execução → Logs
-- Procure mensagens de erro
-- Verifique permissões do Sheets
-
-### "Formulário não carrega"
-- Copie a URL novamente
-- Tente em modo anônimo (Ctrl+Shift+N)
-- Limpe cache do navegador
-
----
-
-## 📞 Próximas melhorias:
-
-Após validar que tudo funciona, podemos adicionar:
-- Dashboard em tempo real
-- Gráficos de análise
-- Análise por período
-- Export para Excel
-- Notificações por email
-
----
-
-**✅ Você consegue fazer isso em ~10 minutos!**
-
-Se ficar preso em algum passo, me avisa qual! 🆘
-
+Ou seja: mudou só o cálculo dos indicadores e vai rodar pelo menu? Salvar
+resolve. Mudou qualquer coisa que o **público** vê? Precisa de nova versão.
