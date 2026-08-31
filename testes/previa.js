@@ -26,7 +26,14 @@ const exemplos = [
   ['Parceria de verdade no planejamento anual, entram junto no problema.', 'Poderiam antecipar quando um pedido vai atrasar, em vez de avisar no dia.'],
   ['Documentação clara, dá para consultar depois sem precisar perguntar de novo.', 'O volume de reuniões de alinhamento poderia cair pela metade.'],
   ['Time acessível, nunca fui destratado ao pedir ajuda fora do escopo deles.', 'Alguns processos ainda dependem de uma pessoa específica estar disponível.'],
-  ['Trazem dados para a discussão em vez de opinião.', 'Retorno de pedidos pequenos demora tanto quanto o de pedidos grandes.']
+  ['Trazem dados para a discussão em vez de opinião.', 'Retorno de pedidos pequenos demora tanto quanto o de pedidos grandes.'],
+  ['N/A', '...'],
+  ['Sem apontamentos',
+   'Como oportunidade de melhoria, acredito que a área pode se aproximar ainda mais das demais, ' +
+   'buscando entender suas rotinas, dificuldades e necessidades. Também vejo espaço para comunicarmos ' +
+   'melhor o que já é feito hoje, porque muita gente desconhece o alcance do trabalho e acaba pedindo ' +
+   'coisas que já existem, ou cobrando prazos sem saber o que está na frente na fila. Um resumo mensal ' +
+   'do que entrou, do que saiu e do que ficou para trás resolveria boa parte disso e custaria pouco.']
 ];
 exemplos.forEach((par,i)=>{
   s.salvarResposta({ avaliacoes: [

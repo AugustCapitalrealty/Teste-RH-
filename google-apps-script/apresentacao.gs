@@ -10,8 +10,7 @@ const PRH_CONFIG = Object.freeze({
   locale: 'pt-BR',
   timezone: 'America/Sao_Paulo',
   expectedRatio: 16 / 9,
-  slidesFixos: 7,   // capa, kpis, comparação, critérios, 1 de cada comentário, ação
-  maxComments: 5   // por slide de comentários
+  slidesFixos: 7   // capa, kpis, comparação, critérios, 1 de cada comentário, ação
 });
 
 const PRH_DS = Object.freeze({
@@ -222,9 +221,58 @@ function PRH_selecionarComentarios_(registros, liberaExterno, liberaAuto) {
   return {
     positivos: grupos.positivos,
     melhorias: grupos.melhorias,
+    // As páginas são montadas aqui, uma vez, e usadas tanto pelo roteiro
+    // quanto pelo desenho. Se cada um paginasse por conta própria, bastaria
+    // um ajuste de altura para o título dizer 3/4 e o slide mostrar outra coisa.
+    paginasPositivos: PRH_paginarComentarios_(grupos.positivos),
+    paginasMelhorias: PRH_paginarComentarios_(grupos.melhorias),
     tituloPositivos: abertas[0] ? abertas[0].nome : 'Pontos fortes',
     tituloMelhorias: abertas[1] ? abertas[1].nome : 'Pontos a melhorar'
   };
+}
+
+// Área útil de uma página de comentários, entre o cabeçalho e o rodapé.
+const PRH_COMENT_TOPO = 78;
+const PRH_COMENT_BASE = 348;
+const PRH_COMENT_GAP = 6;
+
+/**
+ * Altura que um comentário precisa, estimada pelo tamanho do texto.
+ * Os fatores acompanham o que PRH_texto_ usa para encolher a fonte: corpo 9,2,
+ * fonte de texto (0,52 de avanço médio) e entrelinha de 116%.
+ */
+function PRH_alturaComentario_(texto) {
+  const largura = 720 - 60 - 182 - 14;   // slide − margens − colunas fixas − respiro
+  const porLinha = Math.max(20, Math.floor(largura / (9.2 * 0.52)));
+  const linhas = Math.max(1, Math.ceil((String(texto).length + 2) / porLinha));
+  return Math.max(40, Math.round(linhas * 9.2 * 1.37) + 14);
+}
+
+/**
+ * Quebra a lista em páginas pelo espaço que cada comentário ocupa, não por uma
+ * contagem fixa. Com o texto inteiro no slide, um comentário de três linhas e
+ * outro de trinta não cabem no mesmo molde — cinco por página deixaria umas
+ * páginas vazias e outras estourando.
+ */
+function PRH_paginarComentarios_(lista) {
+  const paginas = [];
+  let atual = [], altura = 0;
+  const disponivel = PRH_COMENT_BASE - PRH_COMENT_TOPO;
+
+  lista.forEach(function (c) {
+    const h = Math.min(PRH_alturaComentario_(c.texto), disponivel);
+    const precisa = altura === 0 ? h : altura + PRH_COMENT_GAP + h;
+    if (atual.length && precisa > disponivel) {
+      paginas.push(atual);
+      atual = [c];
+      altura = h;
+      return;
+    }
+    atual.push(c);
+    altura = precisa;
+  });
+  if (atual.length) paginas.push(atual);
+  return paginas;
 }
 
 function PRH_anonimizarComentario_(texto) {
@@ -232,15 +280,15 @@ function PRH_anonimizarComentario_(texto) {
   t = t.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[contato removido]');
   t = t.replace(/https?:\/\/\S+/gi, '[link removido]');
   t = t.replace(/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?\d{4,5}[-.\s]?\d{4}/g, '[contato removido]');
-  return PRH_limitarTexto_(t, 220);
+  return t;   // sem corte: o comentário vai inteiro para o slide
 }
 
 function PRH_definirRoteiro_(m) {
   // Os comentários entram todos: cada bloco vira quantos slides forem precisos,
-  // PRH_CONFIG.maxComments por slide. Lista vazia ainda rende um slide, com a
+  // cabendo pela altura do texto. Lista vazia ainda rende um slide, com a
   // explicação de por que não há nada para mostrar.
-  const paginas = function (lista, id, titulo) {
-    const total = Math.max(1, Math.ceil(lista.length / PRH_CONFIG.maxComments));
+  const paginas = function (grupos, id, titulo) {
+    const total = Math.max(1, grupos.length);
     const saida = [];
     for (let i = 0; i < total; i++) {
       saida.push({ id: id + ':' + i, titulo: titulo + (total > 1 ? ' (' + (i + 1) + '/' + total + ')' : '') });
@@ -254,8 +302,8 @@ function PRH_definirRoteiro_(m) {
     { id: 'comparacao', titulo: 'Autoavaliação × percepção externa' },
     { id: 'criterios', titulo: 'Os sete critérios' }
   ]
-    .concat(paginas(m.comentarios.positivos, 'fortes', m.comentarios.tituloPositivos))
-    .concat(paginas(m.comentarios.melhorias, 'melhorias', m.comentarios.tituloMelhorias))
+    .concat(paginas(m.comentarios.paginasPositivos, 'fortes', m.comentarios.tituloPositivos))
+    .concat(paginas(m.comentarios.paginasMelhorias, 'melhorias', m.comentarios.tituloMelhorias))
     .concat([{ id: 'acao', titulo: 'Plano de ação para validação' }]);
 }
 
@@ -307,7 +355,7 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
     const titulo = (positivo ? m.comentarios.tituloPositivos : m.comentarios.tituloMelhorias).toUpperCase();
     // Duas páginas seguidas com o mesmo título deixam quem folheia sem saber
     // se avançou; o contador no cabeçalho resolve.
-    const totalPaginas = Math.max(1, Math.ceil(lista.length / PRH_CONFIG.maxComments));
+    const totalPaginas = Math.max(1, PRH_paginarComentarios_(lista).length);
     const marcador = totalPaginas > 1 ? '  ·  ' + (Number(parte[1]) + 1) + '/' + totalPaginas : '';
     PRH_header_(slide, W, titulo + marcador, m.area);
     PRH_slideComentarios_(slide, W, H, lista, positivo ? PRH_DS.colors.green : PRH_DS.colors.orange, Number(parte[1]));
@@ -315,7 +363,7 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
     return;
   }
 
-  PRH_header_(slide, W, PRH_tituloPorId_(id), m.area + ' · Atualizado em ' + m.geradoEm);
+  PRH_header_(slide, W, PRH_tituloPorId_(id), m.area);
   if (id === 'kpis') PRH_slideKpis_(slide, W, H, m);
   else if (id === 'comparacao') PRH_slideComparacao_(slide, W, H, m);
   else if (id === 'criterios') PRH_slideCriterios_(slide, W, H, m);
@@ -455,35 +503,34 @@ function PRH_slideComentarios_(slide, W, H, lista, cor, pagina) {
     return;
   }
 
-  const x = 30, w = W - 60, y = 78, linhaH = 48, gap = 6;
-  const inicio = (pagina || 0) * PRH_CONFIG.maxComments;
-  const mostrados = lista.slice(inicio, inicio + PRH_CONFIG.maxComments);
+  const x = 30, w = W - 60;
+  const paginas = PRH_paginarComentarios_(lista);
+  const indice = pagina || 0;
+  const mostrados = paginas[indice] || [];
+  // Número do primeiro item desta página: a contagem é contínua no bloco todo.
+  let inicio = 0;
+  for (let k = 0; k < indice; k++) inicio += paginas[k].length;
 
-  // Quando todos os trechos vêm da mesma origem, um selo por linha só repete
-  // a mesma palavra cinco vezes. Nesse caso a origem vira uma nota única no
-  // alto, e a linha fica com o texto inteiro.
-  const misturado = mostrados.some(function (c) { return c.origem !== mostrados[0].origem; });
-  if (!misturado) {
-    PRH_texto_(slide, x, 64, w, 13, 'Todos os trechos abaixo: ' + mostrados[0].origem.toLowerCase() + '.',
-      { fs: 7.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true, align: 'right' });
-  }
-  const larguraTexto = misturado ? w - 178 : w - 68;
-
+  let ry = PRH_COMENT_TOPO;
   mostrados.forEach(function (c, i) {
-    const ry = y + i * (linhaH + gap);
+    const linhaH = Math.min(PRH_alturaComentario_(c.texto), PRH_COMENT_BASE - PRH_COMENT_TOPO);
     PRH_card_(slide, x, ry, w, linhaH, cor);
-    PRH_texto_(slide, x + 14, ry, 26, linhaH, PRH_inteiro_(inicio + i + 1), { fs: 15, min: 11, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, middle: true });
-    PRH_texto_(slide, x + 44, ry + 5, larguraTexto, linhaH - 10, '“' + c.texto + '”', { fs: 9.2, min: 6.8, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 116, middle: true });
-    if (misturado) {
-      const corOrigem = c.origem === 'Autoavaliação' ? PRH_DS.colors.premium : PRH_DS.colors.brandLight;
-      PRH_pill_(slide, x + w - 124, ry + 15, 110, 18, c.origem.toUpperCase(), corOrigem, '#FFFFFF');
-    }
+    // A caixa do número precisa comportar dois dígitos: em 26pt o "14" não
+    // cabia nem no menor corpo e quebrava em duas linhas.
+    PRH_texto_(slide, x + 10, ry, 34, linhaH, PRH_inteiro_(inicio + i + 1), { fs: 15, min: 10, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, middle: true });
+    PRH_texto_(slide, x + 48, ry + 5, w - 182, linhaH - 10, '“' + c.texto + '”', { fs: 9.2, min: 6.8, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 116, middle: true });
+    // O selo vai em toda linha. Antes ele sumia quando a página inteira era de
+    // uma origem só — como a decisão era por página e não pela lista, o mesmo
+    // deck tinha slides com e sem selo, e quem lia não sabia de onde vinha o
+    // trecho sem voltar páginas.
+    const corOrigem = c.origem === 'Autoavaliação' ? PRH_DS.colors.premium : PRH_DS.colors.brandLight;
+    PRH_pill_(slide, x + w - 124, ry + (linhaH - 18) / 2, 110, 18, c.origem.toUpperCase(), corOrigem, '#FFFFFF');
+    ry += linhaH + PRH_COMENT_GAP;
   });
 
-  const nota = 'Trechos sem identificação; contatos e links removidos. Ordem por origem e extensão — não é ranking.' +
-    (lista.length > PRH_CONFIG.maxComments
-      ? ' ' + PRH_inteiro_(lista.length) + ' comentários no total, ' + PRH_inteiro_(PRH_CONFIG.maxComments) + ' por slide.'
-      : '');
+  const nota = 'Trechos sem identificação; contatos e links removidos, texto na íntegra. ' +
+    'Ordem por origem e extensão — não é ranking.' +
+    (paginas.length > 1 ? ' ' + PRH_inteiro_(lista.length) + ' comentários no total.' : '');
   PRH_texto_(slide, 38, H - 48, W - 76, 14, nota, { fs: 7.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
 }
 
