@@ -100,6 +100,10 @@ function PRH_montarModeloPlanejamentoGestao_(registros) {
   });
 
   const comentarios = PRH_selecionarComentarios_(daArea, liberaExterno, liberaAuto);
+  // Distribuição e posição só existem se a percepção externa passou do corte:
+  // abaixo dele, contar as notas uma a uma diria mais do que a média já diz.
+  const distribuicao = liberaExterno ? PRH_distribuicaoExterna_(daArea) : null;
+  const posicao = liberaExterno ? PRH_posicaoNoRanking_(registros) : null;
   const notaExterna = liberaExterno ? PRH_arredondar_(area.externo.media) : null;
   const notaAuto = liberaAuto ? PRH_arredondar_(area.auto.media) : null;
   const diferenca = notaExterna !== null && notaAuto !== null
@@ -122,10 +126,71 @@ function PRH_montarModeloPlanejamentoGestao_(registros) {
     // Quanto a área está acima (+) ou abaixo (−) da média da empresa.
     contraEmpresa: notaExterna !== null && benchmarks.geral !== null
       ? PRH_arredondar_(notaExterna - benchmarks.geral) : null,
+    distribuicao: distribuicao,
+    posicao: posicao,
     criterios: criterios,
     comentarios: comentarios
   };
   return modelo;
+}
+
+/**
+ * Quantas notas de cada valor a área recebeu das outras.
+ *
+ * A média sozinha esconde a forma: 4,25 pode ser todo mundo dando 4, ou metade
+ * dando 5 e metade dando 3 — e as duas situações pedem conversas diferentes.
+ * As respostas "na" (não sei avaliar) ficam de fora da média e são contadas à
+ * parte, porque dizem outra coisa: quanta gente não se sentiu capaz de julgar.
+ */
+function PRH_distribuicaoExterna_(daArea) {
+  const contagem = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let na = 0, total = 0;
+  daArea.forEach(function (r) {
+    if (!r || r.ehAuto || r.tipo !== 'rating') return;
+    if (r.resposta === 'na') { na++; return; }
+    if (r.resposta === '' || r.resposta === null || r.resposta === undefined) return;
+    const nota = Math.round(Number(r.resposta));
+    if (isNaN(nota) || contagem[nota] === undefined) return;
+    contagem[nota]++;
+    total++;
+  });
+  return { contagem: contagem, na: na, total: total };
+}
+
+/**
+ * Posição da área no ranking de percepção externa, entre as áreas elegíveis.
+ * Mesmo corte do resto: quem não alcançou MINIMO_EXTERNO não entra na lista
+ * nem no denominador.
+ */
+function PRH_posicaoNoRanking_(registros) {
+  const porArea = {};
+  registros.forEach(function (r) {
+    if (!r || r.ehAuto) return;
+    const nome = String(r.area || '').trim();
+    if (!nome) return;
+    if (!porArea[nome]) porArea[nome] = { ids: {}, soma: 0, qtd: 0 };
+    porArea[nome].ids[String(r.idAvaliacao || '')] = true;
+    if (r.tipo !== 'rating' || r.resposta === 'na' || r.resposta === '' || r.resposta === null) return;
+    const nota = Number(r.resposta);
+    if (isNaN(nota)) return;
+    porArea[nome].soma += nota;
+    porArea[nome].qtd++;
+  });
+
+  const lista = [];
+  Object.keys(porArea).forEach(function (nome) {
+    const d = porArea[nome];
+    if (Object.keys(d.ids).length >= MINIMO_EXTERNO && d.qtd > 0) {
+      lista.push({ nome: nome, media: d.soma / d.qtd });
+    }
+  });
+  lista.sort(function (a, b) { return b.media - a.media; });
+
+  const alvo = PRH_normalizar_(PRH_CONFIG.area);
+  for (let i = 0; i < lista.length; i++) {
+    if (PRH_normalizar_(lista[i].nome) === alvo) return { lugar: i + 1, total: lista.length };
+  }
+  return null;
 }
 
 function PRH_calcularBenchmarksSeguros_(registros) {
@@ -407,7 +472,72 @@ function PRH_slideKpis_(slide, W, H, m) {
   ];
   const gap = 12, x = 30, y = 92, cw = (W - 60 - gap * 4) / 5;
   cards.forEach(function (d, i) { PRH_kpi_(slide, x + i * (cw + gap), y, cw, 102, d); });
-  // A metade de baixo ficou livre de propósito — a definir.
+
+  PRH_blocoDistribuicao_(slide, x, 206, 430, 148, m);
+  PRH_blocoContexto_(slide, 472, 206, W - 502, 148, m);
+}
+
+/** Escala de notas do painel: 1 crítico → 5 ótimo. Mesmas cores, mesmo sentido. */
+const PRH_ESCALA_NOTA = ['#E63351', '#F47125', '#F9B310', '#73B82E', '#24A85B'];
+
+function PRH_blocoDistribuicao_(slide, x, y, w, h, m) {
+  PRH_card_(slide, x, y, w, h, PRH_DS.colors.brandMed);
+  PRH_texto_(slide, x + 14, y + 9, w - 28, 14, 'COMO AS NOTAS SE DISTRIBUEM', { fs: 8, min: 7, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true });
+
+  const d = m.distribuicao;
+  if (!d || !d.total) {
+    PRH_texto_(slide, x + 14, y + 32, w - 28, h - 44, 'Sem notas externas liberadas para detalhar.', { fs: 10, min: 8, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, middle: true });
+    return;
+  }
+
+  const legenda = PRH_inteiro_(d.total) + ' notas dadas por outras áreas' +
+    (d.na > 0 ? ' · ' + PRH_inteiro_(d.na) + ' vezes "não sei avaliar", fora da média' : '');
+  PRH_texto_(slide, x + 14, y + 25, w - 28, 12, legenda, { fs: 7, min: 6, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+
+  // A barra é proporcional à maior contagem, não ao total: com sete notas
+  // possíveis concentradas em duas, a escala pelo total achataria tudo.
+  let maior = 1;
+  for (let v = 1; v <= 5; v++) maior = Math.max(maior, d.contagem[v]);
+
+  const rotuloW = 16, barraX = x + 14 + rotuloW + 6, valorW = 62;
+  const barraW = w - (barraX - x) - valorW - 14;
+  const linhaH = 19;
+  for (let v = 5; v >= 1; v--) {
+    const ry = y + 42 + (5 - v) * linhaH;
+    const n = d.contagem[v];
+    const cor = PRH_ESCALA_NOTA[v - 1];
+    PRH_texto_(slide, x + 14, ry, rotuloW, linhaH, String(v), { fs: 9, min: 7, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, middle: true, align: 'center' });
+    PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, barraX, ry + 5, barraW, 9, PRH_DS.colors.grid, null);
+    if (n > 0) PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, barraX, ry + 5, Math.max(2, barraW * n / maior), 9, cor, null);
+    PRH_texto_(slide, barraX + barraW + 6, ry, valorW - 6, linhaH,
+      PRH_inteiro_(n) + '  (' + Math.round(n * 100 / d.total) + '%)',
+      { fs: 7.4, min: 6, bold: n > 0, color: n > 0 ? PRH_DS.colors.text : PRH_DS.colors.muted, family: PRH_DS.fonts.title, oneLine: true, middle: true });
+  }
+}
+
+function PRH_blocoContexto_(slide, x, y, w, h, m) {
+  const validos = m.criterios.filter(function (c) { return c.externa !== null; })
+    .sort(function (a, b) { return b.externa - a.externa; });
+
+  const itens = [
+    { l: 'POSIÇÃO ENTRE AS ÁREAS',
+      v: m.posicao ? m.posicao.lugar + 'ª de ' + m.posicao.total : 'N/D',
+      c: PRH_DS.colors.brandLight },
+    { l: 'CRITÉRIO MAIS FORTE',
+      v: validos.length ? validos[0].nome + ' · ' + PRH_num_(validos[0].externa) : 'N/D',
+      c: PRH_DS.colors.green },
+    { l: 'CRITÉRIO MAIS FRACO',
+      v: validos.length ? validos[validos.length - 1].nome + ' · ' + PRH_num_(validos[validos.length - 1].externa) : 'N/D',
+      c: PRH_DS.colors.orange }
+  ];
+
+  const gap = 6, ch = (h - gap * 2) / 3;
+  itens.forEach(function (d, i) {
+    const cy = y + i * (ch + gap);
+    PRH_card_(slide, x, cy, w, ch, d.c);
+    PRH_texto_(slide, x + 12, cy + 7, w - 20, 12, d.l, { fs: 6.6, min: 6, bold: true, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, oneLine: true });
+    PRH_texto_(slide, x + 12, cy + 20, w - 22, ch - 26, d.v, { fs: 11, min: 7, bold: true, color: d.c, family: PRH_DS.fonts.title, spacing: 106, middle: true });
+  });
 }
 
 function PRH_slideComparacao_(slide, W, H, m) {
@@ -577,7 +707,9 @@ function PRH_card_(slide, x, y, w, h, cor) {
 function PRH_kpi_(slide, x, y, w, h, d) {
   PRH_card_(slide, x, y, w, h, d.c);
   PRH_texto_(slide, x + 12, y + 8, w - 18, 15, d.l, { fs: 7.3, min: 6, bold: true, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, oneLine: true });
-  PRH_texto_(slide, x + 12, y + 27, w - 20, 42, d.v, { fs: 22, min: 15, bold: true, color: d.c, family: PRH_DS.fonts.title, oneLine: true, middle: true });
+  // Sem nota de rodapé o valor ocupa o espaço dela, senão o card fica com o
+  // número encostado no topo e um vazio embaixo.
+  PRH_texto_(slide, x + 12, y + 27, w - 20, d.n ? 42 : 58, d.v, { fs: 22, min: 15, bold: true, color: d.c, family: PRH_DS.fonts.title, oneLine: true, middle: true });
   PRH_texto_(slide, x + 12, y + 77, w - 20, 14, d.n, { fs: 7, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
 }
 
