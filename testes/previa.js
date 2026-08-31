@@ -15,8 +15,28 @@ const s={SpreadsheetApp:{openById:()=>p},SlidesApp,PropertiesService:{getScriptP
 vm.createContext(s);
 vm.runInContext(fs.readFileSync(path.join(RAIZ,'sheets.gs'),'utf8'),s);
 vm.runInContext(fs.readFileSync(path.join(RAIZ,'apresentacao.gs'),'utf8'),s);
-vm.runInContext('inserirDadosDeTeste(); PRH_gerarApresentacaoPlanejamentoGestao();',s);
-const nomes=['Capa','Indicadores','Comparação','Critérios (barras)','Critérios (colunas)','Voz','Ação'];
+vm.runInContext('inserirDadosDeTeste();',s);
+
+// inserirDadosDeTeste() grava o mesmo comentário para todo mundo, e a dedução
+// de duplicatas colapsa a lista. Estes textos são inventados, só para a prévia
+// mostrar os slides de comentários cheios.
+const exemplos = [
+  ['Responde rápido e sempre com contexto suficiente para a gente seguir sozinho.', 'Os prazos combinados nas reuniões nem sempre chegam por escrito depois.'],
+  ['A qualidade dos relatórios melhorou muito no último semestre.', 'Falta um canal único de pedidos; hoje chega por e-mail, WhatsApp e no corredor.'],
+  ['Parceria de verdade no planejamento anual, entram junto no problema.', 'Poderiam antecipar quando um pedido vai atrasar, em vez de avisar no dia.'],
+  ['Documentação clara, dá para consultar depois sem precisar perguntar de novo.', 'O volume de reuniões de alinhamento poderia cair pela metade.'],
+  ['Time acessível, nunca fui destratado ao pedir ajuda fora do escopo deles.', 'Alguns processos ainda dependem de uma pessoa específica estar disponível.'],
+  ['Trazem dados para a discussão em vez de opinião.', 'Retorno de pedidos pequenos demora tanto quanto o de pedidos grandes.']
+];
+exemplos.forEach((par,i)=>{
+  s.salvarResposta({ avaliacoes: [
+    { area_avaliada:'Jurídico', is_autoavaliacao:true, respostas:{q0:'4'}, abertas:{} },
+    { area_avaliada:'Planejamento & Gestão', is_autoavaliacao:false, respostas:{q0:'4'}, abertas:{ q7:par[0], q8:par[1] } }
+  ]});
+});
+
+vm.runInContext('PRH_gerarApresentacaoPlanejamentoGestao();',s);
+const nomes=['Capa','Indicadores','Comparação','Critérios (barras)','Critérios (colunas)','Faz bem','Melhorar','Ação'];
 const out=process.argv[2]||path.join(__dirname,'..','previa');
 fs.mkdirSync(out,{recursive:true});
 let html='<style>body{background:#334;font-family:system-ui;margin:0;padding:24px}h2{color:#fff;font-size:14px;margin:18px 0 8px}svg{box-shadow:0 4px 18px #0006;display:block}</style>';

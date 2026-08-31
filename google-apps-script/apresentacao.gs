@@ -10,8 +10,8 @@ const PRH_CONFIG = Object.freeze({
   locale: 'pt-BR',
   timezone: 'America/Sao_Paulo',
   expectedRatio: 16 / 9,
-  slideCount: 7,
-  maxComments: 4
+  slideCount: 8,
+  maxComments: 5   // por slide de comentários
 });
 
 const PRH_DS = Object.freeze({
@@ -178,29 +178,53 @@ function PRH_calcularBenchmarksSeguros_(registros) {
   };
 }
 
+/**
+ * Devolve os comentários já anonimizados, separados pelas duas perguntas
+ * abertas: o que a área faz bem e o que pode melhorar. Cada grupo vira um
+ * slide próprio.
+ */
 function PRH_selecionarComentarios_(registros, liberaExterno, liberaAuto) {
   const vistos = {};
-  const todos = registros.filter(function (r) {
-    if (!r || r.tipo !== 'texto') return false;
-    if (r.ehAuto ? !liberaAuto : !liberaExterno) return false;
-    return String(r.resposta || '').trim() !== '';
-  }).map(function (r) {
-    return {
-      origem: r.ehAuto ? 'Autoavaliação' : 'Percepção externa',
-      pergunta: String(r.pergunta || ''),
-      texto: PRH_anonimizarComentario_(r.resposta)
-    };
-  }).filter(function (c) {
-    const chave = PRH_normalizar_(c.origem + '|' + c.pergunta + '|' + c.texto);
-    if (!c.texto || vistos[chave]) return false;
+  const abertas = PERGUNTAS.filter(function (p) { return p.tipo === 'texto'; });
+  const chavePositiva = abertas[0] ? PRH_normalizar_(abertas[0].nome) : '';
+  const chaveMelhoria = abertas[1] ? PRH_normalizar_(abertas[1].nome) : '';
+
+  const grupos = { positivos: [], melhorias: [] };
+  registros.forEach(function (r) {
+    if (!r || r.tipo !== 'texto') return;
+    if (r.ehAuto ? !liberaAuto : !liberaExterno) return;
+    if (String(r.resposta || '').trim() === '') return;
+
+    const pergunta = PRH_normalizar_(r.pergunta);
+    const destino = pergunta === chavePositiva ? 'positivos' : (pergunta === chaveMelhoria ? 'melhorias' : null);
+    if (!destino) return;
+
+    const texto = PRH_anonimizarComentario_(r.resposta);
+    if (!texto) return;
+    const chave = destino + '|' + PRH_normalizar_(texto);
+    if (vistos[chave]) return;
     vistos[chave] = true;
-    return true;
+
+    grupos[destino].push({ origem: r.ehAuto ? 'Autoavaliação' : 'Percepção externa', texto: texto });
   });
 
-  todos.sort(function (a, b) {
-    return (a.pergunta + a.origem + a.texto).localeCompare(b.pergunta + b.origem + b.texto, 'pt-BR');
+  // Percepção externa antes da autoavaliação; dentro de cada origem, o trecho
+  // mais longo primeiro, para o comentário mais substancial abrir a lista.
+  // É uma ordem, não um ranking de relevância — e o rodapé diz isso.
+  Object.keys(grupos).forEach(function (k) {
+    grupos[k].sort(function (a, b) {
+      if (a.origem !== b.origem) return a.origem === 'Percepção externa' ? -1 : 1;
+      if (b.texto.length !== a.texto.length) return b.texto.length - a.texto.length;
+      return a.texto.localeCompare(b.texto, 'pt-BR');
+    });
   });
-  return todos.slice(0, PRH_CONFIG.maxComments);
+
+  return {
+    positivos: grupos.positivos,
+    melhorias: grupos.melhorias,
+    tituloPositivos: abertas[0] ? abertas[0].nome : 'Pontos fortes',
+    tituloMelhorias: abertas[1] ? abertas[1].nome : 'Pontos a melhorar'
+  };
 }
 
 function PRH_anonimizarComentario_(texto) {
@@ -218,7 +242,8 @@ function PRH_definirRoteiro_() {
     { id: 'comparacao', titulo: 'Autoavaliação × percepção externa' },
     { id: 'criterios', titulo: 'Os sete critérios' },
     { id: 'criteriosColunas', titulo: 'Os sete critérios · em colunas' },
-    { id: 'voz', titulo: 'Voz qualitativa anonimizada' },
+    { id: 'fortes', titulo: 'O que a área faz bem' },
+    { id: 'melhorias', titulo: 'O que pode melhorar' },
     { id: 'acao', titulo: 'Plano de ação para validação' }
   ];
 }
@@ -258,12 +283,16 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
   const W = deck.getPageWidth(), H = deck.getPageHeight();
   if (id === 'capa') return PRH_slideCapa_(slide, W, H, m);
   PRH_fundoClaro_(slide);
-  PRH_header_(slide, W, PRH_tituloPorId_(id), m.area + ' · Atualizado em ' + m.geradoEm);
+  const titulo = id === 'fortes' ? m.comentarios.tituloPositivos.toUpperCase()
+    : id === 'melhorias' ? m.comentarios.tituloMelhorias.toUpperCase()
+    : PRH_tituloPorId_(id);
+  PRH_header_(slide, W, titulo, m.area + ' · Atualizado em ' + m.geradoEm);
   if (id === 'kpis') PRH_slideKpis_(slide, W, H, m);
   else if (id === 'comparacao') PRH_slideComparacao_(slide, W, H, m);
   else if (id === 'criterios') PRH_slideCriterios_(slide, W, H, m);
   else if (id === 'criteriosColunas') PRH_slideCriteriosColunas_(slide, W, H, m);
-  else if (id === 'voz') PRH_slideVoz_(slide, W, H, m);
+  else if (id === 'fortes') PRH_slideComentarios_(slide, W, H, m.comentarios.positivos, PRH_DS.colors.green);
+  else if (id === 'melhorias') PRH_slideComentarios_(slide, W, H, m.comentarios.melhorias, PRH_DS.colors.orange);
   else if (id === 'acao') PRH_slideAcao_(slide, W, H, m);
   else throw new Error('Tipo de slide desconhecido: ' + id);
   PRH_rodape_(slide, W, H, numero);
@@ -274,7 +303,7 @@ function PRH_tituloPorId_(id) {
     kpis: 'INDICADORES-CHAVE',
     comparacao: 'AUTOAVALIAÇÃO × PERCEPÇÃO EXTERNA', criterios: 'OS SETE CRITÉRIOS',
     criteriosColunas: 'OS SETE CRITÉRIOS · EM COLUNAS',
-    voz: 'VOZ QUALITATIVA ANONIMIZADA', acao: 'PLANO DE AÇÃO PARA VALIDAÇÃO'
+    acao: 'PLANO DE AÇÃO PARA VALIDAÇÃO'
   };
   return mapa[id] || id;
 }
@@ -424,20 +453,42 @@ function PRH_legendaAutoExterna_(slide, x, y) {
   PRH_texto_(slide, x + 127, y, 78, 14, 'Autoavaliação', { fs: 7, min: 6, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, oneLine: true });
 }
 
-function PRH_slideVoz_(slide, W, H, m) {
-  if (!m.comentarios.length) {
+/** Comentários em sequência, um por linha. Usado pelos dois slides abertos. */
+function PRH_slideComentarios_(slide, W, H, lista, cor) {
+  if (!lista.length) {
     PRH_card_(slide, 30, 92, W - 60, 190, PRH_DS.colors.muted);
-    PRH_texto_(slide, 54, 125, W - 108, 100, 'Nenhum comentário pode ser exibido neste momento. O bloco qualitativo respeita o corte de cada origem e não usa conteúdo abaixo do mínimo.', { fs: 16, min: 12, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, spacing: 116, middle: true });
+    PRH_texto_(slide, 54, 125, W - 108, 100, 'Nenhum comentário pode ser exibido nesta pergunta. O bloco qualitativo respeita o corte de cada origem e não usa conteúdo abaixo do mínimo.', { fs: 16, min: 12, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, spacing: 116, middle: true });
     return;
   }
-  const gap = 14, x = 30, y = 84, cw = (W - 60 - gap) / 2, ch = 112;
-  m.comentarios.forEach(function (c, i) {
-    const cx = x + (i % 2) * (cw + gap), cy = y + Math.floor(i / 2) * (ch + gap);
-    PRH_card_(slide, cx, cy, cw, ch, c.origem === 'Autoavaliação' ? PRH_DS.colors.premium : PRH_DS.colors.brandLight);
-    PRH_pill_(slide, cx + 14, cy + 11, 105, 17, c.origem.toUpperCase(), c.origem === 'Autoavaliação' ? PRH_DS.colors.premium : PRH_DS.colors.brandLight, '#FFFFFF');
-    PRH_texto_(slide, cx + 14, cy + 36, cw - 28, 60, '“' + c.texto + '”', { fs: 9.2, min: 7, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 118 });
+
+  const x = 30, w = W - 60, y = 78, linhaH = 48, gap = 6;
+  const mostrados = lista.slice(0, PRH_CONFIG.maxComments);
+
+  // Quando todos os trechos vêm da mesma origem, um selo por linha só repete
+  // a mesma palavra cinco vezes. Nesse caso a origem vira uma nota única no
+  // alto, e a linha fica com o texto inteiro.
+  const misturado = mostrados.some(function (c) { return c.origem !== mostrados[0].origem; });
+  if (!misturado) {
+    PRH_texto_(slide, x, 64, w, 13, 'Todos os trechos abaixo: ' + mostrados[0].origem.toLowerCase() + '.',
+      { fs: 7.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true, align: 'right' });
+  }
+  const larguraTexto = misturado ? w - 178 : w - 68;
+
+  mostrados.forEach(function (c, i) {
+    const ry = y + i * (linhaH + gap);
+    PRH_card_(slide, x, ry, w, linhaH, cor);
+    PRH_texto_(slide, x + 14, ry, 26, linhaH, PRH_inteiro_(i + 1), { fs: 15, min: 11, bold: true, color: cor, family: PRH_DS.fonts.title, oneLine: true, middle: true });
+    PRH_texto_(slide, x + 44, ry + 5, larguraTexto, linhaH - 10, '“' + c.texto + '”', { fs: 9.2, min: 6.8, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 116, middle: true });
+    if (misturado) {
+      const corOrigem = c.origem === 'Autoavaliação' ? PRH_DS.colors.premium : PRH_DS.colors.brandLight;
+      PRH_pill_(slide, x + w - 124, ry + 15, 110, 18, c.origem.toUpperCase(), corOrigem, '#FFFFFF');
+    }
   });
-  PRH_texto_(slide, 38, H - 50, W - 76, 15, 'Trechos sem ID de avaliação; contatos e links são removidos automaticamente. A seleção não representa frequência.', { fs: 7, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+
+  const sobra = lista.length - mostrados.length;
+  const nota = 'Trechos sem identificação; contatos e links removidos. Ordem por origem e extensão — não é ranking.' +
+    (sobra > 0 ? ' Outros ' + PRH_inteiro_(sobra) + ' comentários não couberam aqui.' : '');
+  PRH_texto_(slide, 38, H - 48, W - 76, 14, nota, { fs: 7.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
 }
 
 function PRH_slideAcao_(slide, W, H) {

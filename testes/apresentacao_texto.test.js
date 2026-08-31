@@ -46,7 +46,7 @@ console.log('caixas de texto:', registro.textos.length, '| possível estouro ver
 suspeitos.forEach(x => console.log(`  slide ${x.slide}  ${x.fs}pt  caixa ${x.w}×${x.h}  precisa ~${x.precisa}pt (${x.linhas} linhas)  "${x.texto}"`));
 
 console.log('\n— textos por slide —');
-for (let i = 3; i < 10; i++) {
+for (let i = 3; i < 11; i++) {
   const ts = registro.textos.filter(t => t.slide === i);
   console.log(`slide ${i - 2}: ${ts.length} caixas`);
 }
