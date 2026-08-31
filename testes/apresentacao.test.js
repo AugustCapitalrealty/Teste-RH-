@@ -101,8 +101,8 @@ const cheio = montar();
   if (erro) console.log('   ERRO:', erro.stack);
   ok('gerou sem exceção', !erro);
   ok('retorno ok:true', r && r.ok === true);
-  ok('7 slides no roteiro', r && r.slides === 7, r && r.slides);
-  ok('deck final tem exatamente 7 slides', a.deck._slides.length === 7, a.deck._slides.length);
+  ok('6 slides no roteiro', r && r.slides === 6, r && r.slides);
+  ok('deck final tem exatamente 6 slides', a.deck._slides.length === 6, a.deck._slides.length);
   ok('os 3 slides originais foram removidos', a.registro.removidos === 3, a.registro.removidos);
   ok('deck salvo', a.registro.salvo === true);
   ok('formas desenhadas', a.registro.formas.length > 50, a.registro.formas.length);
@@ -127,7 +127,7 @@ const cheio = montar();
     textos.filter(t => /NaN|undefined|\bnull\b/.test(String(t.texto))).map(t => t.texto).slice(0, 4).join(' | '));
 
   // texto por slide
-  for (let s = 0; s < 7; s++) {
+  for (let s = 0; s < 6; s++) {
     const n = textos.filter(t => t.slide === s + 3).length;
     if (!n) ok('slide ' + (s + 1) + ' tem texto', false);
   }
@@ -178,7 +178,7 @@ console.log('\n── 5. Logo inacessível (rollback) ──');
   try { r = a.rodar('PRH_gerarApresentacaoPlanejamentoGestao()'); } catch (e) { erro = e; }
   console.log('   erro?', erro ? erro.message : 'nenhum');
   ok('logo quebrado não derruba a geração (ou faz rollback limpo)',
-    (!erro && a.deck._slides.length === 7) || (erro && a.deck._slides.length === 3),
+    (!erro && a.deck._slides.length === 6) || (erro && a.deck._slides.length === 3),
     a.deck._slides.length + ' slides');
 }
 

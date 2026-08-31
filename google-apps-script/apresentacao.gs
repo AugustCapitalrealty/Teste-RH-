@@ -10,7 +10,7 @@ const PRH_CONFIG = Object.freeze({
   locale: 'pt-BR',
   timezone: 'America/Sao_Paulo',
   expectedRatio: 16 / 9,
-  slideCount: 7,
+  slideCount: 6,
   maxComments: 4
 });
 
@@ -109,7 +109,6 @@ function PRH_montarModeloPlanejamentoGestao_(registros) {
   const modelo = {
     area: PRH_CONFIG.area,
     geradoEm: Utilities.formatDate(new Date(), PRH_CONFIG.timezone, "dd/MM/yyyy 'às' HH:mm"),
-    fonte: 'Planilha ' + ID_PLANILHA,
     minimoExterno: MINIMO_EXTERNO,
     minimoAuto: MINIMO_AUTOAVALIACAO,
     nExterno: area.externo.avaliadores,
@@ -219,8 +218,7 @@ function PRH_definirRoteiro_() {
     { id: 'comparacao', titulo: 'Autoavaliação × percepção externa' },
     { id: 'criterios', titulo: 'Os sete critérios' },
     { id: 'voz', titulo: 'Voz qualitativa anonimizada' },
-    { id: 'acao', titulo: 'Plano de ação para validação' },
-    { id: 'metodologia', titulo: 'Metodologia e encerramento' }
+    { id: 'acao', titulo: 'Plano de ação para validação' }
   ];
 }
 
@@ -265,7 +263,6 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
   else if (id === 'criterios') PRH_slideCriterios_(slide, W, H, m);
   else if (id === 'voz') PRH_slideVoz_(slide, W, H, m);
   else if (id === 'acao') PRH_slideAcao_(slide, W, H, m);
-  else if (id === 'metodologia') PRH_slideMetodologia_(slide, W, H, m);
   else throw new Error('Tipo de slide desconhecido: ' + id);
   PRH_rodape_(slide, W, H, numero);
 }
@@ -274,8 +271,7 @@ function PRH_tituloPorId_(id) {
   const mapa = {
     kpis: 'INDICADORES-CHAVE',
     comparacao: 'AUTOAVALIAÇÃO × PERCEPÇÃO EXTERNA', criterios: 'OS SETE CRITÉRIOS',
-    voz: 'VOZ QUALITATIVA ANONIMIZADA', acao: 'PLANO DE AÇÃO PARA VALIDAÇÃO',
-    metodologia: 'METODOLOGIA E ENCERRAMENTO'
+    voz: 'VOZ QUALITATIVA ANONIMIZADA', acao: 'PLANO DE AÇÃO PARA VALIDAÇÃO'
   };
   return mapa[id] || id;
 }
@@ -384,26 +380,6 @@ function PRH_slideAcao_(slide, W, H) {
     PRH_texto_(slide, cx + 14, y + 56, cw - 28, 94, d.body, { fs: 10.2, min: 8, color: PRH_DS.colors.text, family: PRH_DS.fonts.body, spacing: 122 });
   });
   PRH_texto_(slide, 42, 301, W - 84, 34, 'Este slide é deliberadamente um canvas: o gerador não cria diagnóstico, causalidade, responsável ou compromisso em nome da equipe.', { fs: 9.5, min: 8, bold: true, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 116, middle: true });
-}
-
-function PRH_slideMetodologia_(slide, W, H, m) {
-  const x = 30, y = 84, gap = 14, cw = (W - 60 - gap) / 2;
-  PRH_card_(slide, x, y, cw, 222, PRH_DS.colors.brandLight);
-  PRH_texto_(slide, x + 16, y + 14, cw - 32, 20, 'COMO OS NÚMEROS SÃO FORMADOS', { fs: 10, min: 8, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true });
-  const metodo = [
-    'Fonte: aba Respostas da planilha configurada em ID_PLANILHA.',
-    'Escopo: somente “' + m.area + '”.',
-    'Médias: respostas válidas de 1 a 5; “na” não entra no cálculo.',
-    'Cortes: externo ≥ ' + m.minimoExterno + '; autoavaliação ≥ ' + m.minimoAuto + '.',
-    'Benchmark: externo consolidado apenas de áreas que alcançaram o corte.',
-    'Comentários: sem ID, com contatos removidos e limitados a ' + PRH_CONFIG.maxComments + ' trechos.'
-  ];
-  PRH_texto_(slide, x + 16, y + 47, cw - 32, 157, metodo.map(function (v) { return '• ' + v; }).join('\n'), { fs: 8.7, min: 7, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 132 });
-
-  PRH_card_(slide, x + cw + gap, y, cw, 222, PRH_DS.colors.premium);
-  PRH_texto_(slide, x + cw + gap + 16, y + 14, cw - 32, 20, 'PRÓXIMO PASSO', { fs: 10, min: 8, bold: true, color: PRH_DS.colors.brandMed, family: PRH_DS.fonts.title, oneLine: true });
-  PRH_texto_(slide, x + cw + gap + 16, y + 51, cw - 32, 82, 'Validar a estrutura visual, a ordem da narrativa e os campos editáveis com Planejamento & Gestão.', { fs: 15, min: 11, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, spacing: 112 });
-  PRH_texto_(slide, x + cw + gap + 16, y + 148, cw - 32, 52, '[EDITÁVEL] Registrar decisão sobre expansão do modelo para as demais áreas.', { fs: 9.5, min: 8, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 118 });
 }
 
 function PRH_fundoClaro_(slide) { slide.getBackground().setSolidFill(PRH_DS.colors.bg); }
