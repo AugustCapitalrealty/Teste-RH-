@@ -1,17 +1,38 @@
 /**
- * PILOTO — PESQUISA RH | PLANEJAMENTO & GESTÃO
+ * APRESENTAÇÃO POR ÁREA — PESQUISA RH 360º
+ *
+ * Um deck para cada área avaliada. Depende de sheets.gs (lerRespostas_,
+ * agregarRespostas_, PERGUNTAS, compararTexto_).
+ *
+ * Como rodar, do menu Executar do Apps Script:
+ *   gerarApresentacoesDeTodasAsAreas()  — todas as áreas, em ordem alfabética
+ *   gerarApresentacaoDeUmaArea()        — só a área na propriedade AREA_UNICA
+ *
+ * Cada área tem o seu próprio deck, criado na primeira execução e reaproveitado
+ * nas seguintes: o mapa área → deck fica na propriedade de script DECKS_POR_AREA.
+ * Rodar de novo atualiza os mesmos arquivos, não cria duplicatas.
  */
 
 const PRH_CONFIG = Object.freeze({
-  deckId: '1axfQX9FW1U4EIlnhJKDA2XizGoERMGNNXF8nmPCOpSI',
-  area: 'Planejamento & Gestão',
   logoColorId: '1XzLbDtTYUTj0AIMuKUUyALJxC4MxU7z4',
   logoNegativeId: '1Tx9cwk1-1_P1TSGoXLZ828JNQ-rY-w6p',
   locale: 'pt-BR',
   timezone: 'America/Sao_Paulo',
   expectedRatio: 16 / 9,
-  slidesFixos: 7   // capa, kpis, comparação, critérios, 1 de cada comentário, ação
+  slidesFixos: 7,   // capa, kpis, comparação, critérios, 1 de cada comentário, ação
+  rodape: 'PESQUISA RH 360º · CAPITAL REALTY',
+  // Nome dos arquivos criados no Drive, com o nome da área no lugar de {area}.
+  nomeDoDeck: 'Pesquisa RH 360º — {area}',
+  // O Apps Script derruba a execução por tempo. Ao passar disto, a rotina para
+  // sozinha e guarda o progresso; a próxima execução continua de onde parou.
+  limiteSegundos: 260
 });
+
+/** Propriedades de script usadas pela geração por área. */
+const PRH_PROP_DECKS = 'DECKS_POR_AREA';     // {"Jurídico": "1AbC...", ...}
+const PRH_PROP_FEITAS = 'AREAS_CONCLUIDAS';  // ["Jurídico", ...] da rodada atual
+const PRH_PROP_PASTA = 'PASTA_DOS_DECKS';    // opcional: id da pasta do Drive
+const PRH_PROP_AREA_UNICA = 'AREA_UNICA';    // usada por gerarApresentacaoDeUmaArea()
 
 const PRH_DS = Object.freeze({
   colors: Object.freeze({
@@ -28,62 +49,192 @@ const PRH_DS = Object.freeze({
 
 const PRH_ASSET_CACHE = {};
 
-function PRH_gerarApresentacaoPlanejamentoGestao() {
+/**
+ * Gera o deck de todas as áreas, em ordem alfabética.
+ *
+ * Se o tempo acabar antes do fim, para sozinha e guarda o que já ficou pronto;
+ * rodar de novo continua da área seguinte. Ao terminar a última, o progresso é
+ * zerado — a próxima execução recomeça do zero e regera tudo com dados novos.
+ */
+function gerarApresentacoesDeTodasAsAreas() {
   const inicio = new Date();
-  Logger.log('PRH_: início do piloto para "' + PRH_CONFIG.area + '".');
-  Logger.log('PRH_: ATENÇÃO — o conteúdo atual do deck ' + PRH_CONFIG.deckId + ' será substituído.');
+  PRH_conferirDependencias_();
 
-  try {
-    if (typeof lerRespostas_ !== 'function' || typeof agregarRespostas_ !== 'function') {
-      throw new Error('Dependências ausentes: copie este arquivo para o mesmo projeto de sheets.gs.');
+  const registros = lerRespostas_();
+  const areas = PRH_areasComRespostas_(registros);
+  if (!areas.length) throw new Error('A aba Respostas está vazia; nenhum deck foi alterado.');
+
+  const feitas = PRH_lerJson_(PRH_PROP_FEITAS, []);
+  const pendentes = areas.filter(function (a) { return feitas.indexOf(a) < 0; });
+  Logger.log('PRH_: ' + areas.length + ' áreas, ' + pendentes.length + ' pendentes nesta rodada.');
+
+  const resultados = [];
+  for (let i = 0; i < pendentes.length; i++) {
+    const decorridos = (new Date().getTime() - inicio.getTime()) / 1000;
+    if (decorridos > PRH_CONFIG.limiteSegundos) {
+      PRH_gravarJson_(PRH_PROP_FEITAS, feitas);
+      Logger.log('PRH_: parando por tempo com ' + (pendentes.length - i) + ' área(s) pendente(s). ' +
+        'Rode a mesma função de novo para continuar de "' + pendentes[i] + '".');
+      return { ok: true, concluidas: resultados, pendentes: pendentes.slice(i) };
     }
-    if (typeof ID_PLANILHA === 'undefined' || !ID_PLANILHA) {
-      throw new Error('ID_PLANILHA não está definido em sheets.gs.');
-    }
 
-    const registros = lerRespostas_();
-    const modelo = PRH_montarModeloPlanejamentoGestao_(registros);
-    const roteiro = PRH_definirRoteiro_(modelo);
-    const deck = SlidesApp.openById(PRH_CONFIG.deckId);
+    const r = PRH_gerarDeArea_(pendentes[i], registros);
+    resultados.push(r);
+    feitas.push(pendentes[i]);
+    PRH_gravarJson_(PRH_PROP_FEITAS, feitas);
+  }
 
-    if (!deck || String(deck.getId()) !== PRH_CONFIG.deckId) {
-      throw new Error('Validação de segurança falhou: o deck aberto não corresponde ao ID autorizado.');
-    }
+  // Rodada completa: limpa o progresso para a próxima começar do início.
+  PropertiesService.getScriptProperties().deleteProperty(PRH_PROP_FEITAS);
+  const segundos = Math.round((new Date().getTime() - inicio.getTime()) / 1000);
+  Logger.log('PRH_: concluído — ' + resultados.length + ' área(s) nesta execução, ' + segundos + 's.');
+  return { ok: true, concluidas: resultados, pendentes: [] };
+}
 
-    PRH_reconstruirDeck_(deck, modelo, roteiro);
-    const segundos = Math.round((new Date().getTime() - inicio.getTime()) / 1000);
-    Logger.log('PRH_: concluído — ' + roteiro.length + ' slides, área "' + modelo.area + '", ' + segundos + 's.');
-    Logger.log('PRH_: ' + deck.getUrl());
-    return { ok: true, deckId: PRH_CONFIG.deckId, slides: roteiro.length, area: modelo.area };
-  } catch (erro) {
-    Logger.log('PRH_: FALHA — ' + (erro && erro.stack ? erro.stack : erro));
-    throw erro;
+/**
+ * Gera o deck de uma área só. Como o menu Executar não passa argumentos, o nome
+ * vem da propriedade de script AREA_UNICA (Configurações do projeto →
+ * Propriedades do script). Em código, prefira gerarApresentacaoDaArea(nome).
+ */
+function gerarApresentacaoDeUmaArea() {
+  const nome = String(PropertiesService.getScriptProperties().getProperty(PRH_PROP_AREA_UNICA) || '').trim();
+  if (!nome) {
+    throw new Error('Defina a propriedade de script ' + PRH_PROP_AREA_UNICA + ' com o nome da área. ' +
+      'Áreas disponíveis: ' + PRH_areasComRespostas_(lerRespostas_()).join(', '));
+  }
+  return gerarApresentacaoDaArea(nome);
+}
+
+/** Gera o deck de uma área pelo nome. */
+function gerarApresentacaoDaArea(area) {
+  PRH_conferirDependencias_();
+  return PRH_gerarDeArea_(String(area || '').trim(), lerRespostas_());
+}
+
+function PRH_conferirDependencias_() {
+  if (typeof lerRespostas_ !== 'function' || typeof agregarRespostas_ !== 'function') {
+    throw new Error('Dependências ausentes: copie este arquivo para o mesmo projeto de sheets.gs.');
+  }
+  if (typeof ID_PLANILHA === 'undefined' || !ID_PLANILHA) {
+    throw new Error('ID_PLANILHA não está definido em sheets.gs.');
   }
 }
 
-function PRH_montarModeloPlanejamentoGestao_(registros) {
+/** Áreas presentes nas respostas, em ordem alfabética de pt-BR. */
+function PRH_areasComRespostas_(registros) {
+  const vistas = {};
+  (registros || []).forEach(function (r) {
+    const nome = r && String(r.area || '').trim();
+    if (nome) vistas[nome] = true;
+  });
+  // compararTexto_ vem de sheets.gs e trata acento como o leitor espera:
+  // "Água" antes de "Banco", não depois de "Zebra".
+  return Object.keys(vistas).sort(typeof compararTexto_ === 'function' ? compararTexto_ : undefined);
+}
+
+function PRH_gerarDeArea_(area, registros) {
+  const inicio = new Date();
+  const modelo = PRH_montarModelo_(registros, area);
+  const roteiro = PRH_definirRoteiro_(modelo);
+  const deck = PRH_deckDaArea_(modelo.area);
+
+  Logger.log('PRH_: "' + modelo.area + '" — o conteúdo atual de ' + deck.getId() + ' será substituído.');
+  PRH_reconstruirDeck_(deck, modelo, roteiro);
+
+  const segundos = Math.round((new Date().getTime() - inicio.getTime()) / 1000);
+  Logger.log('PRH_: "' + modelo.area + '" pronta — ' + roteiro.length + ' slides, ' + segundos + 's · ' + deck.getUrl());
+  return { ok: true, area: modelo.area, deckId: deck.getId(), url: deck.getUrl(), slides: roteiro.length };
+}
+
+/**
+ * O deck da área: o mesmo de sempre, criado na primeira vez.
+ *
+ * O mapa área → deck mora em propriedade de script, e não no código, porque o
+ * repositório é público e porque a lista muda quando uma área entra ou sai.
+ * Se o arquivo foi apagado ou perdeu o compartilhamento, um novo é criado e o
+ * mapa se corrige sozinho.
+ */
+function PRH_deckDaArea_(area) {
+  const mapa = PRH_lerJson_(PRH_PROP_DECKS, {});
+  if (mapa[area]) {
+    try {
+      return SlidesApp.openById(mapa[area]);
+    } catch (erro) {
+      Logger.log('PRH_: o deck de "' + area + '" não abriu (' + erro + '); criando outro.');
+    }
+  }
+
+  const nova = SlidesApp.create(PRH_CONFIG.nomeDoDeck.replace('{area}', area));
+  mapa[area] = nova.getId();
+  PRH_gravarJson_(PRH_PROP_DECKS, mapa);
+  PRH_guardarNaPasta_(nova.getId());
+  Logger.log('PRH_: deck criado para "' + area + '": ' + nova.getUrl());
+  return SlidesApp.openById(nova.getId());
+}
+
+/** Move o deck recém-criado para a pasta configurada, se houver uma. */
+function PRH_guardarNaPasta_(deckId) {
+  const pasta = String(PropertiesService.getScriptProperties().getProperty(PRH_PROP_PASTA) || '').trim();
+  if (!pasta) return;
+  try {
+    DriveApp.getFileById(deckId).moveTo(DriveApp.getFolderById(pasta));
+  } catch (erro) {
+    // Falhar aqui não invalida o deck — ele só fica na raiz do Drive.
+    Logger.log('PRH_: não consegui mover o deck para a pasta ' + pasta + ' (' + erro + ').');
+  }
+}
+
+function PRH_lerJson_(chave, padrao) {
+  try {
+    const bruto = PropertiesService.getScriptProperties().getProperty(chave);
+    return bruto ? JSON.parse(bruto) : padrao;
+  } catch (erro) {
+    Logger.log('PRH_: propriedade ' + chave + ' ilegível (' + erro + '); recomeçando dela.');
+    return padrao;
+  }
+}
+
+function PRH_gravarJson_(chave, valor) {
+  PropertiesService.getScriptProperties().setProperty(chave, JSON.stringify(valor));
+}
+
+/** Lista os decks já criados, com link. Útil para conferir e para distribuir. */
+function listarDecksDasAreas() {
+  const mapa = PRH_lerJson_(PRH_PROP_DECKS, {});
+  const nomes = Object.keys(mapa).sort(typeof compararTexto_ === 'function' ? compararTexto_ : undefined);
+  if (!nomes.length) { Logger.log('PRH_: nenhum deck criado ainda.'); return []; }
+  return nomes.map(function (area) {
+    const url = 'https://docs.google.com/presentation/d/' + mapa[area] + '/edit';
+    Logger.log(area + '  →  ' + url);
+    return { area: area, deckId: mapa[area], url: url };
+  });
+}
+
+function PRH_montarModelo_(registros, area) {
   if (!Array.isArray(registros)) throw new Error('A fonte de respostas não devolveu uma lista.');
   if (!registros.length) throw new Error('A aba Respostas está vazia; nenhum deck foi alterado.');
 
-  const alvoNormalizado = PRH_normalizar_(PRH_CONFIG.area);
+  if (!area) throw new Error('Nenhuma área informada para montar o modelo.');
+  const alvoNormalizado = PRH_normalizar_(area);
   const daArea = registros.filter(function (r) {
     return r && PRH_normalizar_(r.area) === alvoNormalizado;
   });
   if (!daArea.length) {
     const areas = PRH_unicos_(registros.map(function (r) { return r && r.area; }).filter(Boolean));
-    throw new Error('Área "' + PRH_CONFIG.area + '" não encontrada. Áreas disponíveis: ' + areas.join(', '));
+    throw new Error('Área "' + area + '" não encontrada. Áreas disponíveis: ' + areas.join(', '));
   }
 
   const agregadoArea = agregarRespostas_(daArea);
   const nomes = Object.keys(agregadoArea.areas);
   if (nomes.length !== 1) throw new Error('Filtro de escopo retornou mais de uma área.');
-  const area = agregadoArea.areas[nomes[0]];
-  const liberaExterno = area.externo.avaliadores >= MINIMO_EXTERNO && area.externo.media !== null;
-  const liberaAuto = area.auto.avaliadores >= MINIMO_AUTOAVALIACAO && area.auto.media !== null;
+  // "area" é o nome pedido; "dados" é o que a agregação apurou sobre ele.
+  const dados = agregadoArea.areas[nomes[0]];
+  const liberaExterno = dados.externo.avaliadores >= MINIMO_EXTERNO && dados.externo.media !== null;
+  const liberaAuto = dados.auto.avaliadores >= MINIMO_AUTOAVALIACAO && dados.auto.media !== null;
 
   const benchmarks = PRH_calcularBenchmarksSeguros_(registros);
   const criterios = PERGUNTAS.filter(function (p) { return p.tipo === 'rating'; }).map(function (p) {
-    const d = area.perguntas[p.nome] || {};
+    const d = dados.perguntas[p.nome] || {};
     const ext = d.externo || { media: null, qtd: 0 };
     const aut = d.auto || { media: null, qtd: 0 };
     const externa = liberaExterno && ext.media !== null ? PRH_arredondar_(ext.media) : null;
@@ -103,19 +254,18 @@ function PRH_montarModeloPlanejamentoGestao_(registros) {
   // Distribuição e posição só existem se a percepção externa passou do corte:
   // abaixo dele, contar as notas uma a uma diria mais do que a média já diz.
   const distribuicao = liberaExterno ? PRH_distribuicaoExterna_(daArea) : null;
-  const posicao = liberaExterno ? PRH_posicaoNoRanking_(registros) : null;
-  const notaExterna = liberaExterno ? PRH_arredondar_(area.externo.media) : null;
-  const notaAuto = liberaAuto ? PRH_arredondar_(area.auto.media) : null;
+  const posicao = liberaExterno ? PRH_posicaoNoRanking_(registros, nomes[0]) : null;
+  const notaExterna = liberaExterno ? PRH_arredondar_(dados.externo.media) : null;
+  const notaAuto = liberaAuto ? PRH_arredondar_(dados.auto.media) : null;
   const diferenca = notaExterna !== null && notaAuto !== null
     ? PRH_arredondar_(notaAuto - notaExterna) : null;
 
   const modelo = {
-    area: PRH_CONFIG.area,
-    geradoEm: Utilities.formatDate(new Date(), PRH_CONFIG.timezone, "dd/MM/yyyy 'às' HH:mm"),
+    area: nomes[0],   // como está escrito na planilha, não como foi digitado
     minimoExterno: MINIMO_EXTERNO,
     minimoAuto: MINIMO_AUTOAVALIACAO,
-    nExterno: area.externo.avaliadores,
-    nAuto: area.auto.avaliadores,
+    nExterno: dados.externo.avaliadores,
+    nAuto: dados.auto.avaliadores,
     liberaExterno: liberaExterno,
     liberaAuto: liberaAuto,
     notaExterna: notaExterna,
@@ -162,7 +312,7 @@ function PRH_distribuicaoExterna_(daArea) {
  * Mesmo corte do resto: quem não alcançou MINIMO_EXTERNO não entra na lista
  * nem no denominador.
  */
-function PRH_posicaoNoRanking_(registros) {
+function PRH_posicaoNoRanking_(registros, area) {
   const porArea = {};
   registros.forEach(function (r) {
     if (!r || r.ehAuto) return;
@@ -186,7 +336,7 @@ function PRH_posicaoNoRanking_(registros) {
   });
   lista.sort(function (a, b) { return b.media - a.media; });
 
-  const alvo = PRH_normalizar_(PRH_CONFIG.area);
+  const alvo = PRH_normalizar_(area);
   for (let i = 0; i < lista.length; i++) {
     if (PRH_normalizar_(lista[i].nome) === alvo) return { lugar: i + 1, total: lista.length };
   }
@@ -454,10 +604,14 @@ function PRH_slideCapa_(slide, W, H, m) {
   PRH_logo_(slide, PRH_CONFIG.logoNegativeId, 42, 28, 130, 36, true);
   PRH_texto_(slide, 44, 116, 560, 20, 'PESQUISA DE SATISFAÇÃO INTERDEPARTAMENTAL', { fs: 9, min: 8, bold: true, color: PRH_DS.colors.premium, family: PRH_DS.fonts.title, oneLine: true });
   PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, 44, 145, 68, 4, PRH_DS.colors.premium, null);
-  PRH_texto_(slide, 40, 164, 620, 100, 'PLANEJAMENTO\n& GESTÃO', { fs: 40, min: 32, bold: true, color: '#FFFFFF', family: PRH_DS.fonts.title, spacing: 100 });
-  PRH_texto_(slide, 44, 275, 500, 28, 'Piloto executivo · resultados dinâmicos da pesquisa', { fs: 14, min: 11, color: '#CBD5E1', family: PRH_DS.fonts.body, oneLine: true });
-  PRH_pill_(slide, 44, 318, 265, 28, 'ATUALIZADO EM ' + m.geradoEm.toUpperCase(), PRH_DS.colors.brandMed, '#FFFFFF');
-  PRH_texto_(slide, 44, H - 38, W - 88, 14, 'CAPITAL REALTY · USO INTERNO', { fs: 7, min: 7, bold: true, color: '#CBD5E1', family: PRH_DS.fonts.title, oneLine: true });
+  PRH_texto_(slide, 40, 164, 620, 100, String(m.area).toUpperCase(), { fs: 40, min: 22, bold: true, color: '#FFFFFF', family: PRH_DS.fonts.title, spacing: 100 });
+  // No lugar da data, o tamanho da amostra: diz o que a capa precisa dizer
+  // sobre o peso do que vem a seguir.
+  PRH_texto_(slide, 44, 278, 520, 24,
+    PRH_inteiro_(m.nExterno) + ' avaliações de outras áreas' +
+    (m.notaExterna === null ? '' : ' · nota média ' + PRH_num_(m.notaExterna)),
+    { fs: 13, min: 10, color: '#CBD5E1', family: PRH_DS.fonts.body, oneLine: true });
+  PRH_texto_(slide, 44, H - 38, W - 88, 14, 'CAPITAL REALTY · USO INTERNO',{ fs: 7, min: 7, bold: true, color: '#CBD5E1', family: PRH_DS.fonts.title, oneLine: true });
 }
 
 function PRH_slideKpis_(slide, W, H, m) {
@@ -654,10 +808,6 @@ function PRH_slideComentarios_(slide, W, H, lista, cor, pagina) {
     ry += linhaH + PRH_COMENT_GAP;
   });
 
-  const nota = 'Trechos sem identificação; contatos e links removidos, texto na íntegra. ' +
-    'Ordem por origem e extensão — não é ranking.' +
-    (paginas.length > 1 ? ' ' + PRH_inteiro_(lista.length) + ' comentários no total.' : '');
-  PRH_texto_(slide, 38, H - 48, W - 76, 14, nota, { fs: 7.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
 }
 
 function PRH_slideAcao_(slide, W, H) {
@@ -690,7 +840,7 @@ function PRH_header_(slide, W, titulo, subtitulo) {
 
 /** O rótulo é opcional: os dois decks usam o mesmo rodapé com textos diferentes. */
 function PRH_rodape_(slide, W, H, numero, rotulo) {
-  PRH_texto_(slide, 30, H - 19, W - 60, 10, (rotulo || 'PILOTO PLANEJAMENTO & GESTÃO') + '  ·  ' + String(numero).padStart(2, '0'),{ fs: 6.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+  PRH_texto_(slide, 30, H - 19, W - 60, 10, (rotulo || PRH_CONFIG.rodape) + '  ·  ' + String(numero).padStart(2, '0'),{ fs: 6.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
 }
 
 function PRH_card_(slide, x, y, w, h, cor) {

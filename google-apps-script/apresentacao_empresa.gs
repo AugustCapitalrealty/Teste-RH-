@@ -14,10 +14,6 @@ const PRHE_CONFIG = Object.freeze({
   // ID do deck da apresentação geral: o trecho da URL entre /d/ e /edit.
   // Pode ficar aqui ou na propriedade de script DECK_EMPRESA — ver PRHE_deckId_().
   //
-  // ATENÇÃO: hoje é o MESMO deck de apresentacao.gs (o piloto de Planejamento
-  // & Gestão). Os dois geradores apagam todos os slides do deck que recebem,
-  // então quem rodar por último sobrescreve o outro. Para manter as duas
-  // apresentações vivas ao mesmo tempo, cada uma precisa do seu próprio deck.
   deckId: '1axfQX9FW1U4EIlnhJKDA2XizGoERMGNNXF8nmPCOpSI',
   expectedRatio: 16 / 9,
   slidesFixos: 5,   // capa, visão geral, ranking, confronto, critérios
@@ -54,10 +50,6 @@ function PRHE_gerarApresentacaoEmpresa() {
 
   try {
     const deckId = PRHE_deckId_();
-    if (typeof PRH_CONFIG !== 'undefined' && PRH_CONFIG.deckId === deckId) {
-      Logger.log('PRHE_: AVISO — este deck é o mesmo de apresentacao.gs. O que estiver lá ' +
-        'do piloto de "' + PRH_CONFIG.area + '" será substituído pela apresentação da empresa.');
-    }
     if (typeof dadosDaEmpresa_ !== 'function') {
       // Distinguir os dois casos importa: "painel.gs não está aqui" e "painel.gs
       // está aqui, mas é a versão antiga" pedem coisas diferentes de quem lê.
@@ -298,7 +290,6 @@ function PRHE_slideCapa_(slide, W, H, m) {
       PRH_inteiro_(m.areasTotal) + ' áreas · nota média ' + PRH_numOuND_(m.notaGeral)
     : PRH_inteiro_(m.areasTotal) + ' áreas · nota média ' + PRH_numOuND_(m.notaGeral);
   PRH_texto_(slide, 44, 268, 520, 24, resumo, { fs: 13, min: 10, color: '#CBD5E1', family: PRH_DS.fonts.body, oneLine: true });
-  PRH_pill_(slide, 44, 310, 265, 28, 'ATUALIZADO EM ' + String(m.geradoEm).toUpperCase(), PRH_DS.colors.brandMed, '#FFFFFF');
   PRH_texto_(slide, 44, H - 38, W - 88, 14, 'CAPITAL REALTY · USO INTERNO', { fs: 7, min: 7, bold: true, color: '#CBD5E1', family: PRH_DS.fonts.title, oneLine: true });
 }
 

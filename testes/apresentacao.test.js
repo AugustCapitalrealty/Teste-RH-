@@ -1,5 +1,5 @@
 /**
- * Roda PRH_gerarApresentacaoPlanejamentoGestao() contra um SlidesApp falso.
+ * Roda gerarApresentacaoDaArea('Planejamento & Gestão') contra um SlidesApp falso.
  * Nenhum deck real é tocado.
  */
 const fs = require('fs');
@@ -10,6 +10,7 @@ const { criarSlidesApp } = require('./_slides_falso');
 const RAIZ = '/home/user/Teste-RH-/google-apps-script';
 const DECK = '1axfQX9FW1U4EIlnhJKDA2XizGoERMGNNXF8nmPCOpSI';
 
+const GERAR = "gerarApresentacaoDaArea('Planejamento & Gestão')";
 let falhas = 0;
 function ok(rotulo, cond, extra) {
   if (!cond) falhas++;
@@ -83,7 +84,7 @@ console.log('\n── 1. Deck vazio (planilha sem respostas) ──');
 {
   const a = montar();
   let erro = null;
-  try { a.rodar('PRH_gerarApresentacaoPlanejamentoGestao()'); } catch (e) { erro = e; }
+  try { a.rodar(GERAR); } catch (e) { erro = e; }
   ok('recusa rodar sem respostas', !!erro, erro && erro.message);
   ok('nenhum slide antigo foi removido', a.registro.removidos === 0, a.registro.removidos);
 }
@@ -97,7 +98,7 @@ const cheio = montar();
   console.log('   linhas na planilha:', linhas);
 
   let r = null, erro = null;
-  try { r = a.rodar('PRH_gerarApresentacaoPlanejamentoGestao()'); } catch (e) { erro = e; }
+  try { r = a.rodar(GERAR); } catch (e) { erro = e; }
   if (erro) console.log('   ERRO:', erro.stack);
   ok('gerou sem exceção', !erro);
   ok('retorno ok:true', r && r.ok === true);
@@ -149,7 +150,7 @@ console.log('\n── 3. Área abaixo do corte externo (poucos avaliadores) ─�
     ]});
   `);
   let r = null, erro = null;
-  try { r = a.rodar('PRH_gerarApresentacaoPlanejamentoGestao()'); } catch (e) { erro = e; }
+  try { r = a.rodar(GERAR); } catch (e) { erro = e; }
   if (erro) console.log('   ERRO:', erro.stack);
   ok('gera mesmo com externo abaixo do corte', !erro && r && r.ok);
   const textos = a.registro.textos.map(t => String(t.texto));
@@ -165,7 +166,7 @@ console.log('\n── 4. Deck fora de 16:9 ──');
   const a = montar({ deck: { largura: 720, altura: 540 } });
   a.rodar('inserirDadosDeTeste()');
   let erro = null;
-  try { a.rodar('PRH_gerarApresentacaoPlanejamentoGestao()'); } catch (e) { erro = e; }
+  try { a.rodar(GERAR); } catch (e) { erro = e; }
   ok('recusa deck 4:3', !!erro, erro && erro.message);
   ok('nada removido', a.registro.removidos === 0);
   ok('nenhum slide novo sobrou', a.deck._slides.length === 3, a.deck._slides.length);
@@ -176,7 +177,7 @@ console.log('\n── 5. Logo inacessível (rollback) ──');
   const a = montar({ logoQuebrado: true });
   a.rodar('inserirDadosDeTeste()');
   let r = null, erro = null;
-  try { r = a.rodar('PRH_gerarApresentacaoPlanejamentoGestao()'); } catch (e) { erro = e; }
+  try { r = a.rodar(GERAR); } catch (e) { erro = e; }
   console.log('   erro?', erro ? erro.message : 'nenhum');
   ok('logo quebrado não derruba a geração (ou faz rollback limpo)',
     (!erro && a.deck._slides.length >= 7) || (erro && a.deck._slides.length === 3),
@@ -192,7 +193,7 @@ console.log('\n── 6. Área inexistente no config ──');
     ]});
   `);
   let erro = null;
-  try { a.rodar('PRH_gerarApresentacaoPlanejamentoGestao()'); } catch (e) { erro = e; }
+  try { a.rodar(GERAR); } catch (e) { erro = e; }
   ok('erro explica áreas disponíveis', !!erro && /Áreas disponíveis/.test(erro.message), erro && erro.message);
   ok('deck intacto', a.deck._slides.length === 3);
 }

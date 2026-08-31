@@ -73,6 +73,8 @@ function criarSlidesApp(deckId, { largura = 720, altura = 405, slidesIniciais = 
   return {
     SlidesApp: {
       openById: id => { if (id !== deckId) throw new Error('deck não encontrado: ' + id); return deck; },
+      // create() devolve o mesmo deck falso: os testes trabalham com um só.
+      create: nome => { registro.criados = (registro.criados || []).concat([nome]); return deck; },
       PredefinedLayout: { BLANK: 'BLANK' },
       ShapeType: { RECTANGLE: 'RECT', ROUND_RECTANGLE: 'ROUND', ELLIPSE: 'ELLIPSE', TEXT_BOX: 'TEXT_BOX' },
       LineCategory: { STRAIGHT: 'STRAIGHT' },

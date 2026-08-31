@@ -27,7 +27,7 @@ const s = { SpreadsheetApp: { openById: () => planilha }, SlidesApp,
 vm.createContext(s);
 vm.runInContext(fs.readFileSync(path.join(RAIZ, 'sheets.gs'), 'utf8'), s);
 vm.runInContext(fs.readFileSync(path.join(RAIZ, 'apresentacao.gs'), 'utf8'), s);
-vm.runInContext('inserirDadosDeTeste(); PRH_gerarApresentacaoPlanejamentoGestao();', s);
+vm.runInContext("inserirDadosDeTeste(); gerarApresentacaoDaArea('Planejamento & Gestão');", s);
 
 // Montserrat/Open Sans ≈ 0.52 em de avanço médio; altura de linha ≈ 1.25 × fs.
 const LARG = 0.52, ALT = 1.28;
