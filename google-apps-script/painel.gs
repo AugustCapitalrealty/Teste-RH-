@@ -85,7 +85,18 @@ function obterDadosPainel(senha) {
   if (!senhaConfere_(senha)) {
     return { negado: true };
   }
+  return dadosDaEmpresa_();
+}
 
+/**
+ * Todos os números da empresa, sem checagem de senha.
+ *
+ * Separado de obterDadosPainel() para a apresentação da empresa poder usar
+ * exatamente a mesma conta que o painel. Se as duas recalculassem por conta
+ * própria, um dia divergiriam — e ninguém saberia qual está certa.
+ * É interna (sufixo _): não é exposta ao cliente, só ao código do projeto.
+ */
+function dadosDaEmpresa_() {
   const registros = lerRespostas_();
   if (!registros || registros.length === 0) {
     return { vazio: true, minimoExterno: MINIMO_EXTERNO, minimoAuto: MINIMO_AUTOAVALIACAO };

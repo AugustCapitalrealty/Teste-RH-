@@ -520,8 +520,9 @@ function PRH_header_(slide, W, titulo, subtitulo) {
   PRH_linha_(slide, 30, 62, 140, 62, PRH_DS.colors.brandLight, 3);
 }
 
-function PRH_rodape_(slide, W, H, numero) {
-  PRH_texto_(slide, 30, H - 19, W - 60, 10, 'PILOTO PLANEJAMENTO & GESTÃO  ·  ' + String(numero).padStart(2, '0'), { fs: 6.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
+/** O rótulo é opcional: os dois decks usam o mesmo rodapé com textos diferentes. */
+function PRH_rodape_(slide, W, H, numero, rotulo) {
+  PRH_texto_(slide, 30, H - 19, W - 60, 10, (rotulo || 'PILOTO PLANEJAMENTO & GESTÃO') + '  ·  ' + String(numero).padStart(2, '0'),{ fs: 6.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
 }
 
 function PRH_card_(slide, x, y, w, h, cor) {
