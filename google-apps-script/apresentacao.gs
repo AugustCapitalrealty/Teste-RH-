@@ -397,11 +397,13 @@ function PRH_slideCapa_(slide, W, H, m) {
 
 function PRH_slideKpis_(slide, W, H, m) {
   const cards = [
-    { l: 'AVALIAÇÕES EXTERNAS', v: String(m.nExterno), n: 'corte: ' + m.minimoExterno, c: PRH_DS.colors.brandLight },
+    // Só os cards de média levam nota de rodapé: contagem e diferença se
+    // explicam pelo rótulo, e "corte: 5" era regra interna, não indicador.
+    { l: 'AVALIAÇÕES EXTERNAS', v: PRH_inteiro_(m.nExterno), n: '', c: PRH_DS.colors.brandLight },
     { l: 'MÉDIA EXTERNA', v: PRH_numOuND_(m.notaExterna), n: 'escala de 1 a 5', c: PRH_DS.colors.brandMed },
-    { l: 'AUTOAVALIAÇÕES', v: String(m.nAuto), n: 'corte: ' + m.minimoAuto, c: PRH_DS.colors.premium },
+    { l: 'AUTOAVALIAÇÕES', v: PRH_inteiro_(m.nAuto), n: '', c: PRH_DS.colors.premium },
     { l: 'MÉDIA AUTO', v: PRH_numOuND_(m.notaAuto), n: 'escala de 1 a 5', c: PRH_DS.colors.brandLight },
-    { l: 'AUTO − EXTERNA', v: m.diferenca === null ? 'N/D' : PRH_numSinal_(m.diferenca), n: 'diferença matemática', c: m.diferenca === null ? PRH_DS.colors.muted : PRH_DS.colors.orange }
+    { l: 'AUTO − EXTERNA', v: m.diferenca === null ? 'N/D' : PRH_numSinal_(m.diferenca), n: '', c: m.diferenca === null ? PRH_DS.colors.muted : PRH_DS.colors.orange }
   ];
   const gap = 12, x = 30, y = 92, cw = (W - 60 - gap * 4) / 5;
   cards.forEach(function (d, i) { PRH_kpi_(slide, x + i * (cw + gap), y, cw, 102, d); });
