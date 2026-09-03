@@ -345,15 +345,29 @@ function PRHE_slideConfronto_(slide, W, H, m) {
     { rotulo: 'Autoavaliação', cor: PRHE_COR_AUTO },
     { rotulo: 'Como as outras veem', cor: PRHE_COR_EXTERNA }
   ]);
-  const rodape = 'Só as áreas com os dois lados liberados. A autoavaliação vem do próprio time, que costuma ser ' +
-    'pequeno — uma diferença apoiada em poucas pessoas é indício, não conclusão.';
+  const rodape = 'Gap = como as outras veem − autoavaliação: negativo, a área se vê melhor do que é vista. ' +
+    'A autoavaliação vem do próprio time, que costuma ser pequeno — um gap apoiado em poucas pessoas é indício, não conclusão.';
 
   PRHE_grafico_(slide, W, H, m.confronto.map(function (a) {
     return {
       rotulo: a.nome,
-      series: [{ valor: a.notaAuto, cor: PRHE_COR_AUTO }, { valor: a.notaExterna, cor: PRHE_COR_EXTERNA }]
+      series: [{ valor: a.notaAuto, cor: PRHE_COR_AUTO }, { valor: a.notaExterna, cor: PRHE_COR_EXTERNA }],
+      extras: [PRHE_celulaGap_(a.diferenca)]
     };
-  }), rodape);
+  }), rodape, { titulosColunas: ['AUTO', 'EXTERNA', 'GAP'] });
+}
+
+/**
+ * A célula de GAP de uma área. Cor com o mesmo sentido do painel e da planilha:
+ * vermelho quando a área se superestima (gap negativo), verde quando as outras
+ * a veem melhor, cinza dentro da faixa de alinhamento.
+ */
+function PRHE_celulaGap_(gap) {
+  if (gap === null || gap === undefined) return { texto: '—', cor: PRH_DS.colors.muted };
+  const cor = gap <= -LIMITE_DESALINHAMENTO ? '#E63351'
+            : gap >= LIMITE_DESALINHAMENTO ? '#24A85B'
+            : PRH_DS.colors.muted;
+  return { texto: PRH_numSinal_(gap), cor: cor };
 }
 
 function PRHE_slideCriterios_(slide, W, H, m) {
@@ -391,9 +405,14 @@ function PRHE_slidePergunta_(slide, W, H, m, p) {
  */
 const PRHE_MAX_COLUNAS = 8;
 
-/** Escolhe entre coluna e barra deitada pelo número de itens. */
+/**
+ * Escolhe entre coluna e barra deitada pelo número de itens. Colunas numéricas
+ * extras (o GAP do confronto) só existem na barra deitada, onde há uma linha por
+ * item para pendurá-las — pedir extras força esse formato, mesmo com poucos itens.
+ */
 function PRHE_grafico_(slide, W, H, itens, rodape, opts) {
-  if (itens.length > PRHE_MAX_COLUNAS) PRHE_barras_(slide, W, H, itens, rodape, opts);
+  const comExtras = itens.length > 0 && (itens[0].extras || []).length > 0;
+  if (itens.length > PRHE_MAX_COLUNAS || comExtras) PRHE_barras_(slide, W, H, itens, rodape, opts);
   else PRHE_colunas_(slide, W, H, itens, rodape, opts);
 }
 
@@ -407,7 +426,16 @@ function PRHE_barras_(slide, W, H, itens, rodape, opts) {
   const topo = o.topo || 100, fim = 350;
   const rotuloW = 140, x0 = 30, barraX = x0 + rotuloW + 6;
   const nSeries = itens[0].series.length;
-  const valorW = 40, barraW = W - barraX - 30 - valorW * nSeries - 6;
+  // Cada coluna numérica extra rouba largura da barra, então entra na conta
+  // antes de a escala ser dimensionada — senão a barra vaza por cima do número.
+  const nExtras = (itens[0].extras || []).length;
+  const valorW = 40, extraW = 52;
+  const barraW = W - barraX - 30 - valorW * nSeries - extraW * nExtras - 6;
+  const colunaX = function (k) {
+    return k < nSeries
+      ? barraX + barraW + 4 + k * valorW
+      : barraX + barraW + 4 + nSeries * valorW + (k - nSeries) * extraW;
+  };
   const linhaH = Math.min(26, (fim - topo) / itens.length);
   const alturaBarra = nSeries === 1 ? Math.min(13, linhaH - 6) : Math.min(7, (linhaH - 8) / 2);
 
@@ -423,6 +451,15 @@ function PRHE_barras_(slide, W, H, itens, rodape, opts) {
     PRH_texto_(slide, rx - 44, topo - 16, 88, 12, o.referencia.rotulo, { fs: 6.5, min: 5.6, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, oneLine: true, align: 'center' });
   }
 
+  // Com três números seguidos, a cor da legenda deixa de bastar para dizer qual
+  // é qual: as colunas ganham título quando o slide pede.
+  if (o.titulosColunas) {
+    o.titulosColunas.forEach(function (t, k) {
+      PRH_texto_(slide, colunaX(k), topo - 16, (k < nSeries ? valorW : extraW) - 4, 12, t,
+        { fs: 6.2, min: 5.4, bold: true, color: PRH_DS.colors.muted, family: PRH_DS.fonts.title, oneLine: true, align: 'right' });
+    });
+  }
+
   itens.forEach(function (item, i) {
     const ry = topo + i * linhaH;
     if (i % 2 === 0) PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, x0, ry, W - 60, linhaH - 1, '#FFFFFF', null).sendToBack();
@@ -436,9 +473,14 @@ function PRHE_barras_(slide, W, H, itens, rodape, opts) {
         const largura = Math.max(1, barraW * Number(s.valor) / 5);
         PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, barraX, by, largura, alturaBarra, s.cor, null);
       }
-      PRH_texto_(slide, barraX + barraW + 4 + k * valorW, ry, valorW - 4, linhaH,
+      PRH_texto_(slide, colunaX(k), ry, valorW - 4, linhaH,
         s.valor === null || s.valor === undefined ? '—' : PRH_num_(s.valor),
         { fs: 8.4, min: 6.5, bold: true, color: s.cor, family: PRH_DS.fonts.title, oneLine: true, middle: true, align: 'right' });
+    });
+
+    (item.extras || []).forEach(function (e, k) {
+      PRH_texto_(slide, colunaX(nSeries + k), ry, extraW - 4, linhaH, e.texto,
+        { fs: 8.4, min: 6.5, bold: true, color: e.cor, family: PRH_DS.fonts.title, oneLine: true, middle: true, align: 'right' });
     });
   });
 
