@@ -14,7 +14,7 @@
  */
 
 const PRH_CONFIG = Object.freeze({
-  logoColorId: '1XzLbDtTYUTj0AIMuKUUyALJxC4MxU7z4',
+  logoPositivoId: '1XqFtIobiEq7VC2H41sKnFNUuOluw_J4V',
   logoNegativeId: '1Tx9cwk1-1_P1TSGoXLZ828JNQ-rY-w6p',
   locale: 'pt-BR',
   timezone: 'America/Sao_Paulo',
@@ -831,7 +831,7 @@ function PRH_header_(slide, W, titulo, subtitulo) {
   PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, 30, 13, 5, 36, PRH_DS.colors.brandLight, null);
   PRH_texto_(slide, 44, 6, W - 230, 30, titulo, { fs: 19, min: 12, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, oneLine: true, middle: true });
   PRH_texto_(slide, 44, 34, W - 230, 18, subtitulo, { fs: 9.5, min: 7.5, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, oneLine: true, middle: true });
-  PRH_logo_(slide, PRH_CONFIG.logoColorId, W - 142, 14, 112, 32, false);
+  PRH_logo_(slide, PRH_CONFIG.logoPositivoId, W - 142, 14, 112, 32, false);
   PRH_linha_(slide, 0, 62, W, 62, PRH_DS.colors.lines, 1);
   PRH_linha_(slide, 30, 62, 140, 62, PRH_DS.colors.brandLight, 3);
 }
