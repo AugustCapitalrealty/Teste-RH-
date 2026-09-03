@@ -65,8 +65,11 @@ const cheio = montarEmpresa();
   // A ordenação de cada slide é a prometida.
   const m = a.rodar('PRHE_montarModelo_(dadosDaEmpresa_())');
   const decrescente = (lista, campo) => lista.every((x, i) => i === 0 || lista[i - 1][campo] >= x[campo]);
+  const crescente = (lista, campo) => lista.every((x, i) => i === 0 || lista[i - 1][campo] <= x[campo]);
   ok('ranking em ordem decrescente de nota externa', decrescente(m.ranking, 'notaExterna'));
-  ok('confronto em ordem decrescente de autoavaliação', decrescente(m.confronto, 'notaAuto'));
+  // O confronto ordena pelo gap, não pela autoavaliação: quem mais se
+  // superestima abre o slide, quem é mais bem visto do que se vê fecha.
+  ok('confronto do gap mais negativo para o mais positivo', crescente(m.confronto, 'diferenca'));
   ok('critérios do melhor para o pior', decrescente(m.criterios, 'media'));
   ok('cada slide de pergunta em ordem decrescente',
     m.porPergunta.every(p => decrescente(p.areas, 'externa')));

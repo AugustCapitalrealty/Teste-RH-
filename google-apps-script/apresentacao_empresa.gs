@@ -136,8 +136,9 @@ function PRHE_montarModelo_(d) {
     // "Nota de cada área": só quem tem nota externa, da maior para a menor.
     ranking: comNota.slice().sort(function (x, y) { return y.notaExterna - x.notaExterna; }),
     areasOcultas: d.areas.length - comNota.length,
-    // "Autoavaliação × percepção": só quem tem os dois lados, autoavaliação maior primeiro.
-    confronto: comAuto.slice().sort(function (x, y) { return y.notaAuto - x.notaAuto; }),
+    // "Autoavaliação × percepção": só quem tem os dois lados, ordenado pelo gap —
+    // quem mais se superestima no topo, quem é mais bem visto do que se vê no fim.
+    confronto: comAuto.slice().sort(function (x, y) { return x.diferenca - y.diferenca; }),
     criterios: d.criterios.slice(),  // já vem do maior para o menor
     porPergunta: PRHE_montarPorPergunta_(d)
   };
@@ -250,7 +251,7 @@ function PRHE_desenharSlide_(slide, deck, id, m) {
   const cabecalhos = {
     visao: ['VISÃO GERAL', 'Leitura automática dos dados · atualizado em ' + m.geradoEm],
     ranking: ['NOTA DE CADA ÁREA', 'Como cada área é avaliada pelas outras, em escala de 0 a 5'],
-    confronto: ['AUTOAVALIAÇÃO × PERCEPÇÃO DAS OUTRAS ÁREAS', 'Ordenado pela autoavaliação, da maior para a menor'],
+    confronto: ['AUTOAVALIAÇÃO × PERCEPÇÃO DAS OUTRAS ÁREAS', 'Ordenado pelo gap, do mais negativo para o mais positivo'],
     criterios: ['PONTOS FORTES E FRACOS DA EMPRESA', 'Média de todas as áreas juntas em cada critério, do melhor para o pior']
   };
   PRH_fundoClaro_(slide);
@@ -449,10 +450,17 @@ function PRHE_barras_(slide, W, H, itens, rodape, opts) {
 
   // Com três números seguidos, a cor da legenda deixa de bastar para dizer qual
   // é qual: as colunas ganham título quando o slide pede.
+  //
+  // O rótulo é alinhado à direita como os números, mas não cabe na largura da
+  // coluna — "EXTERNA" pede ~26pt e sobram 22 depois da margem interna que o
+  // Slides reserva. A caixa cresce para a esquerda, sobre o vão, com a borda
+  // direita no lugar; e min = fs impede o autoajuste de encolher um rótulo só,
+  // que era o que deixava EXTERNA menor que AUTO e GAP, e ainda quebrado em duas.
   if (o.titulosColunas) {
+    const folgaTitulo = 24;
     o.titulosColunas.forEach(function (t, k) {
-      PRH_texto_(slide, colunaX(k), topo - 16, (k < nSeries ? valorW : extraW) - 4, 12, t,
-        { fs: 6.2, min: 5.4, bold: true, color: PRH_DS.colors.muted, family: PRH_DS.fonts.title, oneLine: true, align: 'right' });
+      PRH_texto_(slide, colunaX(k) - folgaTitulo, topo - 16, (k < nSeries ? valorW : extraW) - 4 + folgaTitulo, 12, t,
+        { fs: 6.2, min: 6.2, bold: true, color: PRH_DS.colors.muted, family: PRH_DS.fonts.title, oneLine: true, align: 'right' });
     });
   }
 
