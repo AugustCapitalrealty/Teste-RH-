@@ -49,12 +49,19 @@ function montar(opts) {
     return a;
   }
 
+  const props = opts.props || {};
   const logs = [];
   let uid = 0;
   const sandbox = {
     SpreadsheetApp: { openById: () => planilha },
     SlidesApp,
-    PropertiesService: { getScriptProperties: () => ({ getProperty: () => null, setProperty: () => {} }) },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperty: k => (k in props ? props[k] : null),
+        setProperty: (k, v) => { props[k] = v; },
+        deleteProperty: k => { delete props[k]; }
+      })
+    },
     HtmlService: { createHtmlOutput: h => ({ _h: h, setTitle() { return this; }, addMetaTag() { return this; }, setWidth() { return this; }, setHeight() { return this; } }) },
     Logger: { log: m => logs.push(String(m)) },
     MimeType: { CSV: 'text/csv' },
@@ -76,7 +83,7 @@ function montar(opts) {
   ['sheets.gs'].forEach(f => vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), sandbox));
   vm.runInContext(fs.readFileSync(path.join(RAIZ, 'apresentacao.gs'), 'utf8'), sandbox);
 
-  return { sandbox, planilha, logs, deck, registro, rodar: e => vm.runInContext(e, sandbox) };
+  return { sandbox, planilha, props, logs, deck, registro, rodar: e => vm.runInContext(e, sandbox) };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -196,6 +203,57 @@ console.log('\n── 6. Área inexistente no config ──');
   try { a.rodar(GERAR); } catch (e) { erro = e; }
   ok('erro explica áreas disponíveis', !!erro && /Áreas disponíveis/.test(erro.message), erro && erro.message);
   ok('deck intacto', a.deck._slides.length === 3);
+}
+
+console.log('\n── 7. Consolidado de indicadores (uma área por slide) ──');
+{
+  const a = montar();
+  a.rodar('inserirDadosDeTeste()');
+
+  let r = null, erro = null;
+  try { r = a.rodar('gerarIndicadoresDeTodasAsAreas()'); } catch (e) { erro = e; }
+  if (erro) console.log('   ERRO:', erro.stack);
+  ok('gerou sem exceção', !erro);
+  ok('retorno ok:true', r && r.ok === true);
+
+  const areas = a.rodar('PRH_areasComRespostas_(lerRespostas_())');
+  ok('um slide por área', r && r.slides === areas.length, `${r && r.slides} de ${areas.length}`);
+  ok('deck final com a mesma contagem', a.deck._slides.length === areas.length, a.deck._slides.length);
+  ok('os 3 slides originais foram removidos', a.registro.removidos === 3, a.registro.removidos);
+  ok('deck salvo', a.registro.salvo === true);
+
+  // Cada slide precisa dizer de quem é: o subtítulo do cabeçalho leva a área.
+  const textos = a.registro.textos.map(t => String(t.texto));
+  const semArea = areas.filter(n => textos.indexOf(n) < 0);
+  ok('toda área aparece nomeada em algum slide', semArea.length === 0, semArea.join(', '));
+  ok('todo slide é o de indicadores-chave',
+    a.registro.textos.filter(t => t.texto === 'INDICADORES-CHAVE').length === areas.length);
+
+  ok('nada de NaN/undefined/null em texto', !textos.some(t => /NaN|undefined|\bnull\b/.test(t)),
+    textos.filter(t => /NaN|undefined|\bnull\b/.test(t)).slice(0, 3).join(' | '));
+
+  const W = 720, H = 405;
+  const fora = a.registro.formas.filter(f => f.tipo !== 'ELLIPSE' && (f.x < -1 || f.y < -1 || f.x + f.w > W + 1 || f.y + f.h > H + 1));
+  ok('nenhuma forma estoura o slide', fora.length === 0,
+    fora.slice(0, 3).map(f => `s${f.slide} x=${f.x} y=${f.y}`).join(' | '));
+
+  // O arquivo é o mesmo entre rodadas: o id fica guardado nas propriedades.
+  const idGuardado = a.props['DECK_INDICADORES'];
+  ok('id do consolidado guardado em propriedade', !!idGuardado, idGuardado);
+  const criadosAntes = (a.registro.criados || []).length;
+  const r2 = a.rodar('gerarIndicadoresDeTodasAsAreas()');
+  ok('segunda rodada reaproveita o arquivo', (a.registro.criados || []).length === criadosAntes);
+  ok('e não duplica slides', a.deck._slides.length === areas.length, a.deck._slides.length);
+  ok('mesmo deck nas duas rodadas', r2.deckId === r.deckId);
+}
+
+console.log('\n── 8. Consolidado sem respostas ──');
+{
+  const a = montar();
+  let erro = null;
+  try { a.rodar('gerarIndicadoresDeTodasAsAreas()'); } catch (e) { erro = e; }
+  ok('recusa rodar sem respostas', !!erro, erro && erro.message);
+  ok('nenhum slide antigo removido', a.registro.removidos === 0, a.registro.removidos);
 }
 
 console.log(falhas === 0 ? '\n🎉 tudo passou' : `\n⚠️ ${falhas} falha(s)`);

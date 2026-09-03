@@ -7,6 +7,8 @@
  * Como rodar, do menu Executar do Apps Script:
  *   gerarApresentacoesDeTodasAsAreas()  — todas as áreas, em ordem alfabética
  *   gerarApresentacaoDeUmaArea()        — só a área na propriedade AREA_UNICA
+ *   gerarIndicadoresDeTodasAsAreas()    — um só arquivo, o slide de indicadores
+ *                                         de cada área, uma área por slide
  *
  * Cada área tem o seu próprio deck, criado na primeira execução e reaproveitado
  * nas seguintes: o mapa área → deck fica na propriedade de script DECKS_POR_AREA.
@@ -22,6 +24,7 @@ const PRH_CONFIG = Object.freeze({
   slidesFixos: 7,   // capa, kpis, comparação, critérios, 1 de cada comentário, ação
   // Nome dos arquivos criados no Drive, com o nome da área no lugar de {area}.
   nomeDoDeck: 'Pesquisa RH 360º — {area}',
+  nomeDoDeckIndicadores: 'Pesquisa RH 360º — Indicadores por área',
   // O Apps Script derruba a execução por tempo. Ao passar disto, a rotina para
   // sozinha e guarda o progresso; a próxima execução continua de onde parou.
   limiteSegundos: 260
@@ -32,6 +35,7 @@ const PRH_PROP_DECKS = 'DECKS_POR_AREA';     // {"Jurídico": "1AbC...", ...}
 const PRH_PROP_FEITAS = 'AREAS_CONCLUIDAS';  // ["Jurídico", ...] da rodada atual
 const PRH_PROP_PASTA = 'PASTA_DOS_DECKS';    // opcional: id da pasta do Drive
 const PRH_PROP_AREA_UNICA = 'AREA_UNICA';    // usada por gerarApresentacaoDeUmaArea()
+const PRH_PROP_DECK_INDICADORES = 'DECK_INDICADORES';  // id do consolidado de indicadores
 
 const PRH_DS = Object.freeze({
   colors: Object.freeze({
@@ -108,6 +112,61 @@ function gerarApresentacaoDeUmaArea() {
 function gerarApresentacaoDaArea(area) {
   PRH_conferirDependencias_();
   return PRH_gerarDeArea_(String(area || '').trim(), lerRespostas_());
+}
+
+/**
+ * Um único arquivo com o slide de indicadores-chave de cada área, uma área por
+ * slide, em ordem alfabética.
+ *
+ * Serve para circular a leitura do gap sem regerar os treze decks completos:
+ * é o mesmo slide que abre o deck de cada área, com os mesmos números, só que
+ * lado a lado. O deck é sempre o mesmo arquivo — o link que você compartilhar
+ * continua valendo depois de cada rodada.
+ *
+ * Áreas abaixo do corte de anonimato entram assim mesmo: o slide já sabe
+ * mostrar "N/D" e dizer que não há notas externas liberadas. Escondê-las aqui
+ * faria a lista mentir sobre quantas áreas existem.
+ */
+function gerarIndicadoresDeTodasAsAreas() {
+  const inicio = new Date();
+  PRH_conferirDependencias_();
+
+  const registros = lerRespostas_();
+  const areas = PRH_areasComRespostas_(registros);
+  if (!areas.length) throw new Error('A aba Respostas está vazia; nenhum deck foi alterado.');
+
+  // Os modelos são montados antes de tocar no deck: se alguma área falhar, o
+  // arquivo anterior fica intacto, em vez de virar uma lista pela metade.
+  const paginas = areas.map(function (area) {
+    const modelo = PRH_montarModelo_(registros, area);
+    return { id: 'kpis', titulo: 'Indicadores-chave · ' + modelo.area, modelo: modelo };
+  });
+
+  const deck = PRH_deckDeIndicadores_();
+  Logger.log('PRH_: o conteúdo atual de ' + deck.getId() + ' será substituído por ' + paginas.length + ' slides.');
+  PRH_reconstruirPaginas_(deck, paginas, 1);
+
+  const segundos = Math.round((new Date().getTime() - inicio.getTime()) / 1000);
+  Logger.log('PRH_: indicadores por área prontos — ' + paginas.length + ' áreas, ' + segundos + 's · ' + deck.getUrl());
+  return { ok: true, areas: areas, slides: paginas.length, deckId: deck.getId(), url: deck.getUrl() };
+}
+
+/** O arquivo consolidado de indicadores: o mesmo de sempre, criado na primeira vez. */
+function PRH_deckDeIndicadores_() {
+  const guardado = String(PropertiesService.getScriptProperties().getProperty(PRH_PROP_DECK_INDICADORES) || '').trim();
+  if (guardado) {
+    try {
+      return SlidesApp.openById(guardado);
+    } catch (erro) {
+      Logger.log('PRH_: o consolidado de indicadores não abriu (' + erro + '); criando outro.');
+    }
+  }
+
+  const nova = SlidesApp.create(PRH_CONFIG.nomeDoDeckIndicadores);
+  PropertiesService.getScriptProperties().setProperty(PRH_PROP_DECK_INDICADORES, nova.getId());
+  PRH_guardarNaPasta_(nova.getId());
+  Logger.log('PRH_: consolidado de indicadores criado: ' + nova.getUrl());
+  return SlidesApp.openById(nova.getId());
 }
 
 function PRH_conferirDependencias_() {
@@ -523,23 +582,38 @@ function PRH_definirRoteiro_(m) {
 }
 
 function PRH_reconstruirDeck_(deck, modelo, roteiro) {
+  // O total varia com a quantidade de comentários, então o piso é o que não muda.
+  PRH_reconstruirPaginas_(deck, roteiro.map(function (item) {
+    return { id: item.id, titulo: item.titulo, modelo: modelo };
+  }), PRH_CONFIG.slidesFixos);
+}
+
+/**
+ * O núcleo da reconstrução: desenha as páginas novas, e só depois remove as
+ * antigas. Cada página traz o próprio modelo, o que permite tanto um deck de
+ * uma área só (todas as páginas com o mesmo modelo) quanto o consolidado, com
+ * uma área por página.
+ *
+ * A ordem importa: se o desenho falhar no meio, os slides novos somem e o
+ * conteúdo anterior continua onde estava. Ninguém fica com um deck pela metade.
+ */
+function PRH_reconstruirPaginas_(deck, paginas, minimo) {
   const W = deck.getPageWidth(), H = deck.getPageHeight();
   if (!W || !H || Math.abs(W / H - PRH_CONFIG.expectedRatio) > 0.015) {
     throw new Error('O deck alvo não está em 16:9 (dimensões atuais: ' + W + ' × ' + H + ' pt).');
   }
-  // O total varia com a quantidade de comentários, então o piso é o que não muda.
-  if (roteiro.length < PRH_CONFIG.slidesFixos) {
-    throw new Error('Roteiro inválido: esperado ao menos ' + PRH_CONFIG.slidesFixos + ' slides, montados ' + roteiro.length + '.');
+  if (paginas.length < minimo) {
+    throw new Error('Roteiro inválido: esperado ao menos ' + minimo + ' slides, montados ' + paginas.length + '.');
   }
 
   const anteriores = deck.getSlides().slice();
   const novos = [];
   try {
-    roteiro.forEach(function (item, indice) {
+    paginas.forEach(function (item, indice) {
       const slide = deck.appendSlide(SlidesApp.PredefinedLayout.BLANK);
       novos.push(slide);
-      PRH_desenharSlide_(slide, deck, item.id, modelo);
-      Logger.log('PRH_: slide ' + (indice + 1) + '/' + roteiro.length + ' — ' + item.titulo + '.');
+      PRH_desenharSlide_(slide, deck, item.id, item.modelo);
+      Logger.log('PRH_: slide ' + (indice + 1) + '/' + paginas.length + ' — ' + item.titulo + '.');
     });
   } catch (erro) {
     Logger.log('PRH_: desenho interrompido; removendo somente os novos slides e preservando a versão anterior.');
@@ -550,9 +624,9 @@ function PRH_reconstruirDeck_(deck, modelo, roteiro) {
     throw erro;
   }
 
-  Logger.log('PRH_: ' + roteiro.length + ' novos slides prontos; iniciando substituição do conteúdo anterior.');
+  Logger.log('PRH_: ' + paginas.length + ' novos slides prontos; iniciando substituição do conteúdo anterior.');
   anteriores.forEach(function (slide) { slide.remove(); });
-  if (deck.getSlides().length !== roteiro.length) throw new Error('Contagem final de slides divergente.');
+  if (deck.getSlides().length !== paginas.length) throw new Error('Contagem final de slides divergente.');
   deck.saveAndClose();
 }
 
