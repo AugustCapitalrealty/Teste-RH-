@@ -196,11 +196,11 @@ O indicador principal: como a área é vista pelas outras, como ela se vê, e o 
 | **Nota da Área** | Média que a área recebeu **das outras áreas** (0–5). |
 | Autoavaliações (n) | Quantas pessoas **da própria área** se autoavaliaram. |
 | **Nota da Autoavaliação** | Média que a área deu **a si mesma**. |
-| **Diferença (Auto − Externa)** | Positiva = a área se vê melhor do que é vista. Negativa = o contrário. |
+| **Gap (Externa − Auto)** | Negativo = a área se vê melhor do que é vista. Positivo = as outras a veem melhor do que ela própria. |
 | Leitura | Interpretação em texto da diferença. |
 | Status | `OK` ou o motivo de estar oculto por anonimato. |
 
-A coluna **Diferença** vem colorida: 🔴 vermelho quando a área se superestima (ponto de atenção), 🟢 verde quando é mais bem vista do que imagina, cinza quando está alinhada. O limite é `LIMITE_DESALINHAMENTO` (padrão `0.3`).
+A coluna **Gap** vem colorida: 🔴 vermelho quando a área se superestima — gap negativo, ponto de atenção —, 🟢 verde quando é mais bem vista do que imagina, cinza quando está alinhada. O limite é `LIMITE_DESALINHAMENTO` (padrão `0.3`).
 
 ---
 
@@ -208,7 +208,7 @@ A coluna **Diferença** vem colorida: 🔴 vermelho quando a área se superestim
 
 Uma linha por **(área × pergunta)** — permite ver exatamente em qual critério cada área vai bem ou mal.
 
-`Área | Seção | Pergunta | Respostas (n) | Nota (externa) | Nota (autoavaliação) | Diferença | Status`
+`Área | Seção | Pergunta | Respostas (n) | Nota (externa) | Nota (autoavaliação) | Gap (Externa − Auto) | Status`
 
 Use os filtros do Sheets para isolar uma área ou um critério específico.
 
@@ -248,7 +248,7 @@ Metadados chave/valor (`pesquisa_id`, `titulo_pesquisa`, `status`, `criado_em`).
 | **Mínimo de caracteres do comentário** | `main.gs` → `const MIN_CHARS = 3` | Troque o número. |
 | **Mínimo de avaliações externas** | `sheets.gs` → `const MINIMO_EXTERNO = 5` | Abaixo disso a nota da área fica oculta. |
 | **Mínimo de autoavaliações** | `sheets.gs` → `const MINIMO_AUTOAVALIACAO = 1` | **Sem mínimo**: as áreas da empresa são pequenas e um corte maior escondia a comparação da maioria delas. Veja a ressalva abaixo. |
-| **Sensibilidade da coluna Diferença** | `sheets.gs` → `const LIMITE_DESALINHAMENTO = 0.3` | Diferenças menores que isso são lidas como "percepção alinhada". |
+| **Sensibilidade da coluna Gap** | `sheets.gs` → `const LIMITE_DESALINHAMENTO = 0.3` | Gaps menores que isso, em módulo, são lidos como "percepção alinhada". |
 | **Total de colaboradores** | `sheets.gs` → `const TOTAL_COLABORADORES = 55` | Só o denominador do indicador de participação no painel. Nenhuma nota depende disso. |
 | **Textos, cores, logo** | `main.gs` → dentro de `getFormHTML()` | HTML/CSS inline. A paleta usa variáveis CSS (`--navy`, `--e1..e5`, etc.). |
 | **ID da planilha** | `sheets.gs` → `const ID_PLANILHA` | Um só lugar. |

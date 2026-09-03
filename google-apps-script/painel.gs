@@ -109,7 +109,9 @@ function dadosDaEmpresa_() {
     const a = resultado.areas[nome];
     const temExterno = a.externo.avaliadores >= MINIMO_EXTERNO && a.externo.media !== null;
     const temAuto = a.auto.avaliadores >= MINIMO_AUTOAVALIACAO && a.auto.media !== null;
-    const dif = (temExterno && temAuto) ? arredondar_(a.auto.media - a.externo.media) : null;
+    // Gap = externa − auto. Positivo: as outras veem a área melhor do que ela
+    // mesma se vê. Negativo: a área se superestima — o caso que pede atenção.
+    const dif = (temExterno && temAuto) ? arredondar_(a.externo.media - a.auto.media) : null;
     return {
       nome: nome,
       nExterno: a.externo.avaliadores,
@@ -148,7 +150,7 @@ function dadosDaEmpresa_() {
         secao: p.secao,
         externa: temE ? arredondar_(ext.media) : null,
         auto: temA ? arredondar_(aut.media) : null,
-        diferenca: (temE && temA) ? arredondar_(aut.media - ext.media) : null,
+        diferenca: (temE && temA) ? arredondar_(ext.media - aut.media) : null,
         // Nº de notas externas nesta pergunta. Pode ser menor que o total de
         // avaliadores da área: quem respondeu "na" não entra na média.
         n: ext.qtd || 0
@@ -250,14 +252,17 @@ function montarDestaques_(areas, criterios, notaGeral, participacao) {
     });
   }
 
-  const superestimadas = areas.filter(function (a) { return a.diferenca !== null && a.diferenca >= 0.5; })
-                             .sort(function (x, y) { return y.diferenca - x.diferenca; });
+  // Com o gap em externa − auto, quem se superestima aparece com gap negativo:
+  // a lista é a das mais negativas, e o texto usa o módulo.
+  const superestimadas = areas.filter(function (a) { return a.diferenca !== null && a.diferenca <= -0.5; })
+                             .sort(function (x, y) { return x.diferenca - y.diferenca; });
   if (superestimadas.length > 0) {
     const a = superestimadas[0];
+    const distancia = Math.abs(a.diferenca);
     destaques.push({
       tipo: 'atencao',
-      texto: '<strong>' + a.nome + '</strong> se avalia ' + formatarNum_(a.diferenca) +
-             (a.diferenca >= 2 ? ' pontos' : ' ponto') + ' acima do que as outras áreas a avaliam' +
+      texto: '<strong>' + a.nome + '</strong> se avalia ' + formatarNum_(distancia) +
+             (distancia >= 2 ? ' pontos' : ' ponto') + ' acima do que as outras áreas a avaliam' +
              (superestimadas.length === 2 ? ' — e mais 1 área tem o mesmo padrão.'
               : superestimadas.length > 2 ? ' — e mais ' + (superestimadas.length - 1) + ' áreas têm o mesmo padrão.' : '.')
     });
@@ -878,8 +883,8 @@ function getPainelHTML() {
         kpi('⚖️', 'Maior desalinhamento',
             maior ? (maior.diferenca > 0 ? '+' : '') + num(maior.diferenca) : '—',
             maior ? esc(maior.nome) + ' · ' + maior.nAuto + ' autoav.' : 'ainda sem comparação possível',
-            'Maior distância entre como uma área se avalia e como as outras a avaliam. ' +
-            'Positivo = a área se vê melhor do que a veem.') +
+            'Maior distância entre como as outras áreas avaliam uma área e como ela se avalia. ' +
+            'Negativo = a área se vê melhor do que a veem.') +
         '</div>';
 
       return '<section class="bloco" id="s-visao"><h2>Visão geral</h2>' +
@@ -1036,7 +1041,7 @@ function getPainelHTML() {
 
       return '<section class="bloco" id="s-auto"><h2>Autoavaliação × percepção das outras áreas</h2>' +
         '<div class="bloco-sub">🪞 é como a área se avalia; 👁️ é como as outras a avaliam. ' +
-        'Diferença positiva significa que a área se vê melhor do que é vista.<br>' +
+        'O gap é <strong>como a veem − como se vê</strong>: negativo significa que a área se vê melhor do que é vista.<br>' +
         '<strong>Repare no número de respostas de cada lado.</strong> A autoavaliação vem do próprio time, ' +
         'que costuma ser pequeno — uma diferença apoiada em 3 pessoas é um indício, não uma conclusão.</div>' +
         '<div class="campos">' +
@@ -1092,13 +1097,13 @@ function getPainelHTML() {
         return;
       }
 
-      // Quantas pessoas sustentam cada lado. Sem isso, "+1,24 — a área se vê melhor"
+      // Quantas pessoas sustentam cada lado. Sem isso, "−1,24 — a área se vê melhor"
       // parece igualmente sólido apoiado em 3 ou em 25 respostas.
       alvo.innerHTML = lista.map(function (a) {
         // Vermelho reservado para o descompasso grande: com quase todas as áreas
-        // acima de +0,3, pintar todas de rosa faz a cor perder função.
-        const classe = a.diferenca >= 1 ? 'selo-alerta'
-                     : a.diferenca <= -1 ? 'selo-ok' : 'selo-neutro';
+        // abaixo de −0,3, pintar todas de rosa faz a cor perder função.
+        const classe = a.diferenca <= -1 ? 'selo-alerta'
+                     : a.diferenca >= 1 ? 'selo-ok' : 'selo-neutro';
         const seta = a.diferenca > 0 ? '↑' : (a.diferenca < 0 ? '↓' : '');
         // Uma pessoa não é uma média. O RH precisa ver isso antes de tratar o
         // número como posição do time.
@@ -1777,7 +1782,7 @@ function getPainelHTML() {
 
       const cabecalho = '<tr><th>Critério</th>' + escolhidas.map(function (a) {
         return '<th style="text-align:right">' + esc(a) + '</th>';
-      }).join('') + (escolhidas.length === 1 ? '<th style="text-align:right">Autoavaliação</th><th style="text-align:right">Diferença</th>' : '') + '</tr>';
+      }).join('') + (escolhidas.length === 1 ? '<th style="text-align:right">Autoavaliação</th><th style="text-align:right">Gap</th>' : '') + '</tr>';
 
       const corpo = criterios.map(function (c) {
         let linha = '<td><strong>' + esc(c.nome) + '</strong><div style="font-size:11px;color:#657386">' + esc(c.secao) + '</div></td>';
@@ -1790,7 +1795,7 @@ function getPainelHTML() {
           const d = (dados.detalhe[escolhidas[0]] || []).filter(function (x) { return x.pergunta === c.nome; })[0];
           let dif = '—';
           if (d && d.diferenca !== null) {
-            const cor = d.diferenca >= 0.3 ? '#C42342' : (d.diferenca <= -0.3 ? '#1B7A44' : '#657386');
+            const cor = d.diferenca <= -0.3 ? '#C42342' : (d.diferenca >= 0.3 ? '#1B7A44' : '#657386');
             dif = '<span style="color:' + cor + '">' + (d.diferenca > 0 ? '+' : '') + num(d.diferenca) + '</span>';
           }
           linha += '<td class="num">' + num(d ? d.auto : null) + '</td><td class="num">' + dif + '</td>';

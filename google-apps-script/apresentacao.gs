@@ -244,7 +244,7 @@ function PRH_montarModelo_(registros, area) {
       secao: p.secao,
       externa: externa,
       auto: auto,
-      diferenca: externa !== null && auto !== null ? PRH_arredondar_(auto - externa) : null,
+      diferenca: externa !== null && auto !== null ? PRH_arredondar_(externa - auto) : null,
       nExterno: liberaExterno ? ext.qtd : null,
       benchmark: benchmarks.porPergunta[p.nome] === undefined ? null : benchmarks.porPergunta[p.nome]
     };
@@ -257,8 +257,9 @@ function PRH_montarModelo_(registros, area) {
   const posicao = liberaExterno ? PRH_posicaoNoRanking_(registros, nomes[0]) : null;
   const notaExterna = liberaExterno ? PRH_arredondar_(dados.externo.media) : null;
   const notaAuto = liberaAuto ? PRH_arredondar_(dados.auto.media) : null;
+  // Gap = externa − auto: positivo, as outras a veem melhor do que ela se vê.
   const diferenca = notaExterna !== null && notaAuto !== null
-    ? PRH_arredondar_(notaAuto - notaExterna) : null;
+    ? PRH_arredondar_(notaExterna - notaAuto) : null;
 
   const modelo = {
     area: nomes[0],   // como está escrito na planilha, não como foi digitado
@@ -622,7 +623,7 @@ function PRH_slideKpis_(slide, W, H, m) {
     { l: 'MÉDIA EXTERNA', v: PRH_numOuND_(m.notaExterna), n: 'escala de 1 a 5', c: PRH_DS.colors.brandMed },
     { l: 'AUTOAVALIAÇÕES', v: PRH_inteiro_(m.nAuto), n: '', c: PRH_DS.colors.premium },
     { l: 'MÉDIA AUTO', v: PRH_numOuND_(m.notaAuto), n: 'escala de 1 a 5', c: PRH_DS.colors.brandLight },
-    { l: 'AUTO − EXTERNA', v: m.diferenca === null ? 'N/D' : PRH_numSinal_(m.diferenca), n: '', c: m.diferenca === null ? PRH_DS.colors.muted : PRH_DS.colors.orange }
+    { l: 'EXTERNA − AUTO', v: m.diferenca === null ? 'N/D' : PRH_numSinal_(m.diferenca), n: '', c: m.diferenca === null ? PRH_DS.colors.muted : PRH_DS.colors.orange }
   ];
   const gap = 12, x = 30, y = 92, cw = (W - 60 - gap * 4) / 5;
   cards.forEach(function (d, i) { PRH_kpi_(slide, x + i * (cw + gap), y, cw, 102, d); });
@@ -703,11 +704,11 @@ function PRH_slideComparacao_(slide, W, H, m) {
   PRH_barraNota_(slide, x, 258, chartW, 'Média da empresa', m.notaEmpresa, PRH_DS.colors.muted, m.nEmpresa);
 
   PRH_card_(slide, 526, 82, W - 556, 244, PRH_DS.colors.orange);
-  PRH_texto_(slide, 542, 98, W - 588, 18, 'DIFERENÇA', { fs: 9, min: 8, bold: true, color: PRH_DS.colors.orange, family: PRH_DS.fonts.title, oneLine: true });
+  PRH_texto_(slide, 542, 98, W - 588, 18, 'GAP · EXTERNA − AUTO', { fs: 9, min: 8, bold: true, color: PRH_DS.colors.orange, family: PRH_DS.fonts.title, oneLine: true });
   PRH_texto_(slide, 542, 126, W - 588, 50, m.diferenca === null ? 'N/D' : PRH_numSinal_(m.diferenca), { fs: 28, min: 20, bold: true, color: PRH_DS.colors.text, family: PRH_DS.fonts.title, oneLine: true });
   PRH_texto_(slide, 542, 186, W - 588, 62, m.diferenca === null
     ? 'Comparação retida até ambos os lados alcançarem seus cortes.'
-    : PRH_frasePosicao_('A autoavaliação está', m.diferenca, 'a percepção externa'),
+    : PRH_frasePosicao_('A percepção externa está', m.diferenca, 'a autoavaliação'),
     { fs: 9.5, min: 7.5, color: PRH_DS.colors.body, family: PRH_DS.fonts.body, spacing: 118 });
   PRH_texto_(slide, 542, 254, W - 588, 62, m.contraEmpresa === null
     ? 'Comparação com a empresa retida pelo mesmo corte.'

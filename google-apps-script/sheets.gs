@@ -526,7 +526,7 @@ function gerarPainel_(resultado) {
   const cabecalho = [
     'Área', 'Avaliações recebidas (n)', 'Nota da Área',
     'Autoavaliações (n)', 'Nota da Autoavaliação',
-    'Diferença (Auto − Externa)', 'Leitura', 'Status'
+    'Gap (Externa − Auto)', 'Leitura', 'Status'
   ];
   aba.appendRow(cabecalho);
   formatarCabecalho_(aba, cabecalho.length, COR_NAVY);
@@ -542,7 +542,8 @@ function gerarPainel_(resultado) {
 
     const notaExterna = temExterno ? arredondar_(area.externo.media) : '';
     const notaAuto = temAuto ? arredondar_(area.auto.media) : '';
-    const diferenca = (temExterno && temAuto) ? arredondar_(area.auto.media - area.externo.media) : '';
+    // Gap = externa − auto: positivo, as outras a veem melhor do que ela se vê.
+    const diferenca = (temExterno && temAuto) ? arredondar_(area.externo.media - area.auto.media) : '';
 
     linhas.push([
       nomeArea,
@@ -560,25 +561,25 @@ function gerarPainel_(resultado) {
   if (linhas.length === 0) return;
 
   aba.getRange(2, 1, linhas.length, cabecalho.length).setValues(linhas);
-  // Colore a coluna "Diferença" (verde = auto acima, vermelho = auto abaixo)
+  // Colore a coluna "Gap" (verde = as outras a veem melhor, vermelho = ela se superestima)
   for (let i = 0; i < coresDiferenca.length; i++) {
     if (coresDiferenca[i]) aba.getRange(2 + i, 6).setFontColor(coresDiferenca[i]).setFontWeight('bold');
   }
   finalizarAba_(aba, cabecalho.length);
 }
 
-/** Texto interpretando a diferença entre autoavaliação e percepção externa */
+/** Texto interpretando o gap (externa − auto) entre percepção externa e autoavaliação */
 function lerDiferenca_(temExterno, temAuto, diferenca) {
   if (!temExterno || !temAuto) return 'Dados insuficientes para comparar';
-  if (diferenca >= LIMITE_DESALINHAMENTO) return 'A área se vê melhor do que as outras a veem';
-  if (diferenca <= -LIMITE_DESALINHAMENTO) return 'As outras áreas a veem melhor do que ela própria';
+  if (diferenca <= -LIMITE_DESALINHAMENTO) return 'A área se vê melhor do que as outras a veem';
+  if (diferenca >= LIMITE_DESALINHAMENTO) return 'As outras áreas a veem melhor do que ela própria';
   return 'Percepção alinhada';
 }
 
 function corDaDiferenca_(diferenca) {
   if (diferenca === '') return null;
-  if (diferenca >= LIMITE_DESALINHAMENTO) return COR_VERMELHO;   // ponto de atenção
-  if (diferenca <= -LIMITE_DESALINHAMENTO) return COR_VERDE;     // modéstia / reconhecimento
+  if (diferenca <= -LIMITE_DESALINHAMENTO) return COR_VERMELHO;   // ponto de atenção
+  if (diferenca >= LIMITE_DESALINHAMENTO) return COR_VERDE;       // modéstia / reconhecimento
   return COR_CINZA;
 }
 
@@ -598,7 +599,7 @@ function gerarAnalisePorPergunta_(resultado) {
 
   const cabecalho = [
     'Área', 'Seção', 'Pergunta', 'Respostas (n)',
-    'Nota (externa)', 'Nota (autoavaliação)', 'Diferença', 'Status'
+    'Nota (externa)', 'Nota (autoavaliação)', 'Gap (Externa − Auto)', 'Status'
   ];
   aba.appendRow(cabecalho);
   formatarCabecalho_(aba, cabecalho.length, COR_NAVY);
@@ -620,7 +621,7 @@ function gerarAnalisePorPergunta_(resultado) {
 
       const notaExterna = temExterno ? arredondar_(externo.media) : '';
       const notaAuto = temAuto ? arredondar_(auto.media) : '';
-      const diferenca = (temExterno && temAuto) ? arredondar_(auto.media - externo.media) : '';
+      const diferenca = (temExterno && temAuto) ? arredondar_(externo.media - auto.media) : '';
 
       linhas.push([
         nomeArea, p.secao, p.nome, externo.qtd,
