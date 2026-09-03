@@ -32,7 +32,6 @@ const PRHE_FAIXAS = Object.freeze([
 const PRHE_COR_AUTO = '#151E49';      // autoavaliação, igual ao painel
 const PRHE_COR_EXTERNA = '#F9B310';   // como as outras áreas veem
 const PRHE_SEM_DADOS = '#DADFE7';
-const PRHE_RODAPE = 'PESQUISA RH 360º · CAPITAL REALTY';
 
 const PRHE_ROTULO_CURTO = Object.freeze({
   'Clareza da comunicação': 'Clareza',
@@ -227,7 +226,7 @@ function PRHE_reconstruirDeck_(deck, modelo, roteiro) {
     roteiro.forEach(function (item, indice) {
       const slide = deck.appendSlide(SlidesApp.PredefinedLayout.BLANK);
       novos.push(slide);
-      PRHE_desenharSlide_(slide, deck, item.id, modelo, indice + 1);
+      PRHE_desenharSlide_(slide, deck, item.id, modelo);
       Logger.log('PRHE_: slide ' + (indice + 1) + '/' + roteiro.length + ' — ' + item.titulo + '.');
     });
   } catch (erro) {
@@ -244,7 +243,7 @@ function PRHE_reconstruirDeck_(deck, modelo, roteiro) {
   deck.saveAndClose();
 }
 
-function PRHE_desenharSlide_(slide, deck, id, m, numero) {
+function PRHE_desenharSlide_(slide, deck, id, m) {
   const W = deck.getPageWidth(), H = deck.getPageHeight();
   if (id === 'capa') return PRHE_slideCapa_(slide, W, H, m);
 
@@ -260,7 +259,6 @@ function PRHE_desenharSlide_(slide, deck, id, m, numero) {
     const p = m.porPergunta[Number(id.split(':')[1])];
     PRH_header_(slide, W, String(p.nome).toUpperCase(), p.secao + ' · como cada área é avaliada pelas outras');
     PRHE_slidePergunta_(slide, W, H, m, p);
-    PRH_rodape_(slide, W, H, numero, PRHE_RODAPE);
     return;
   }
 
@@ -271,8 +269,6 @@ function PRHE_desenharSlide_(slide, deck, id, m, numero) {
   else if (id === 'confronto') PRHE_slideConfronto_(slide, W, H, m);
   else if (id === 'criterios') PRHE_slideCriterios_(slide, W, H, m);
   else throw new Error('Tipo de slide desconhecido: ' + id);
-
-  PRH_rodape_(slide, W, H, numero, PRHE_RODAPE);
 }
 
 function PRHE_slideCapa_(slide, W, H, m) {

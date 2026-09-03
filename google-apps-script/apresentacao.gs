@@ -20,7 +20,6 @@ const PRH_CONFIG = Object.freeze({
   timezone: 'America/Sao_Paulo',
   expectedRatio: 16 / 9,
   slidesFixos: 7,   // capa, kpis, comparação, critérios, 1 de cada comentário, ação
-  rodape: 'PESQUISA RH 360º · CAPITAL REALTY',
   // Nome dos arquivos criados no Drive, com o nome da área no lugar de {area}.
   nomeDoDeck: 'Pesquisa RH 360º — {area}',
   // O Apps Script derruba a execução por tempo. Ao passar disto, a rotina para
@@ -539,7 +538,7 @@ function PRH_reconstruirDeck_(deck, modelo, roteiro) {
     roteiro.forEach(function (item, indice) {
       const slide = deck.appendSlide(SlidesApp.PredefinedLayout.BLANK);
       novos.push(slide);
-      PRH_desenharSlide_(slide, deck, item.id, modelo, indice + 1);
+      PRH_desenharSlide_(slide, deck, item.id, modelo);
       Logger.log('PRH_: slide ' + (indice + 1) + '/' + roteiro.length + ' — ' + item.titulo + '.');
     });
   } catch (erro) {
@@ -557,7 +556,7 @@ function PRH_reconstruirDeck_(deck, modelo, roteiro) {
   deck.saveAndClose();
 }
 
-function PRH_desenharSlide_(slide, deck, id, m, numero) {
+function PRH_desenharSlide_(slide, deck, id, m) {
   const W = deck.getPageWidth(), H = deck.getPageHeight();
   if (id === 'capa') return PRH_slideCapa_(slide, W, H, m);
   PRH_fundoClaro_(slide);
@@ -575,7 +574,6 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
     const marcador = totalPaginas > 1 ? '  ·  ' + (Number(parte[1]) + 1) + '/' + totalPaginas : '';
     PRH_header_(slide, W, titulo + marcador, m.area);
     PRH_slideComentarios_(slide, W, H, lista, positivo ? PRH_DS.colors.green : PRH_DS.colors.orange, Number(parte[1]));
-    PRH_rodape_(slide, W, H, numero);
     return;
   }
 
@@ -585,7 +583,6 @@ function PRH_desenharSlide_(slide, deck, id, m, numero) {
   else if (id === 'criterios') PRH_slideCriterios_(slide, W, H, m);
   else if (id === 'acao') PRH_slideAcao_(slide, W, H, m);
   else throw new Error('Tipo de slide desconhecido: ' + id);
-  PRH_rodape_(slide, W, H, numero);
 }
 
 function PRH_tituloPorId_(id) {
@@ -840,10 +837,6 @@ function PRH_header_(slide, W, titulo, subtitulo) {
 }
 
 /** O rótulo é opcional: os dois decks usam o mesmo rodapé com textos diferentes. */
-function PRH_rodape_(slide, W, H, numero, rotulo) {
-  PRH_texto_(slide, 30, H - 19, W - 60, 10, (rotulo || PRH_CONFIG.rodape) + '  ·  ' + String(numero).padStart(2, '0'),{ fs: 6.5, min: 6.5, color: PRH_DS.colors.muted, family: PRH_DS.fonts.body, oneLine: true });
-}
-
 function PRH_card_(slide, x, y, w, h, cor) {
   PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, x, y, w, h, PRH_DS.colors.card, PRH_DS.colors.lines);
   PRH_shape_(slide, SlidesApp.ShapeType.RECTANGLE, x, y, 4, h, cor || PRH_DS.colors.brandLight, null);
